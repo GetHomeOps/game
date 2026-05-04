@@ -1,0 +1,17 @@
+# Dependencies
+node_modules/
+
+# Local runtime data (Express JSON store — player/score data)
+server/data.json
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor noise
+.DS_Store
+
+# Logs and caches
+*.log
+npm-debug.log*

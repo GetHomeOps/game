@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex,nofollow" />
+  <title>Opsy Wopsy · Admin</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css?v=8" />
+  <!-- Same-origin API by default (Express serves both). Set window.__API_BASE__ before this runs if the admin page is hosted separately from the API. -->
+  <script>
+    window.__API_BASE__ =
+      window.__API_BASE__ !== undefined && window.__API_BASE__ !== null
+        ? String(window.__API_BASE__)
+        : "";
+  </script>
+  <style>
+    /*
+     * Admin-only styles. Kept inline so the file is self-contained and we
+     * never ship admin chrome to regular game players.
+     */
+    body.admin {
+      background: linear-gradient(180deg, #c9b59a 0%, #8b7355 45%, #4a3f36 100%);
+      color: var(--paper);
+      min-height: 100dvh;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+
+    .admin-shell {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .admin-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.25rem;
+    }
+
+    .admin-header h1 {
+      margin: 0;
+      font-family: "Courier New", monospace;
+      letter-spacing: 0.02em;
+      font-size: 1.6rem;
+      color: var(--paper);
+    }
+
+    .admin-header .subtitle {
+      margin: 0;
+      font-size: 0.85rem;
+      opacity: 0.78;
+    }
+
+    .admin-header .home-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.85rem;
+    }
+
+    .admin-header .home-link:hover {
+      text-decoration: underline;
+    }
+
+    .admin-card {
+      background: rgba(0, 0, 0, 0.32);
+      border: 1px solid rgba(255, 248, 238, 0.12);
+      border-radius: 12px;
+      padding: 1.1rem 1.1rem 1.25rem;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.35);
+    }
+
+    .admin-card + .admin-card {
+      margin-top: 1rem;
+    }
+
+    .admin-form {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-width: 460px;
+    }
+
+    .admin-form label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--cream);
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .admin-form input {
+      font: inherit;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1.5px solid rgba(255, 248, 238, 0.25);
+      background: rgba(255, 248, 238, 0.95);
+      color: #3e2723;
+    }
+
+    .admin-form input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255, 183, 3, 0.35);
+    }
+
+    .admin-form .actions {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-top: 0.25rem;
+    }
+
+    .admin-form .err {
+      margin: 0;
+      font-size: 0.82rem;
+      color: #ffcdd2;
+      background: rgba(191, 54, 12, 0.85);
+      padding: 0.35rem 0.5rem;
+      border-radius: 6px;
+      min-height: 0;
+      display: none;
+    }
+
+    .admin-form .err:not(:empty) {
+      display: block;
+    }
+
+    .admin-warning {
+      background: rgba(255, 183, 3, 0.18);
+      border: 1px solid rgba(255, 183, 3, 0.55);
+      color: #ffe066;
+      padding: 0.55rem 0.7rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-card {
+      background: rgba(244, 232, 212, 0.08);
+      border: 1px solid rgba(255, 248, 238, 0.14);
+      border-radius: 10px;
+      padding: 0.65rem 0.85rem;
+    }
+
+    .stat-card .lbl {
+      display: block;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.7;
+    }
+
+    .stat-card .val {
+      display: block;
+      font-size: 1.4rem;
+      font-weight: 800;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .users-table-wrap {
+      overflow-x: auto;
+    }
+
+    table.users-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+
+    table.users-table th,
+    table.users-table td {
+      padding: 0.55rem 0.6rem;
+      text-align: left;
+      border-bottom: 1px solid rgba(255, 248, 238, 0.08);
+      vertical-align: top;
+    }
+
+    table.users-table th {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      opacity: 0.8;
+      background: rgba(0, 0, 0, 0.22);
+      position: sticky;
+      top: 0;
+    }
+
+    table.users-table td.email a {
+      color: var(--accent);
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    table.users-table td.email a:hover {
+      text-decoration: underline;
+    }
+
+    table.users-table .num {
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    table.users-table .scores-list {
+      max-width: 16rem;
+      color: rgba(255, 248, 238, 0.82);
+    }
+
+    table.users-table .username {
+      font-weight: 700;
+    }
+
+    table.users-table .meta {
+      font-size: 0.74rem;
+      opacity: 0.7;
+      white-space: nowrap;
+    }
+
+    table.users-table tr:hover td {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .toolbar input[type="search"] {
+      flex: 1 1 14rem;
+      min-width: 0;
+      font: inherit;
+      padding: 0.5rem 0.65rem;
+      border-radius: 8px;
+      border: 1.5px solid rgba(255, 248, 238, 0.25);
+      background: rgba(255, 248, 238, 0.95);
+      color: #3e2723;
+    }
+
+    .toolbar button,
+    .admin-form .btn {
+      font: inherit;
+      font-weight: 700;
+      padding: 0.5rem 0.85rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--wood);
+      background: linear-gradient(180deg, #ffe066, var(--accent));
+      box-shadow: 0 3px 0 rgba(92, 61, 46, 0.4);
+    }
+
+    .toolbar button.ghost,
+    .admin-form .btn.ghost {
+      color: var(--cream);
+      background: rgba(244, 232, 212, 0.08);
+      border: 1px solid rgba(255, 248, 238, 0.18);
+      box-shadow: none;
+    }
+
+    .toolbar button:active,
+    .admin-form .btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 0 rgba(92, 61, 46, 0.4);
+    }
+
+    .toolbar button.danger {
+      color: #ffcdd2;
+      background: linear-gradient(180deg, #d84315, #bf360c);
+      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .toolbar button.danger:active {
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .admin-status {
+      min-height: 1.25em;
+      margin: 0.35rem 0 0.5rem;
+      font-size: 0.82rem;
+    }
+
+    .admin-status.ok {
+      color: #c8e6c9;
+    }
+
+    .admin-status.err {
+      color: #ffcdd2;
+    }
+
+    .empty {
+      padding: 1.5rem;
+      text-align: center;
+      opacity: 0.75;
+    }
+
+    @media (max-width: 600px) {
+      body.admin {
+        padding: 0.75rem;
+      }
+      table.users-table th,
+      table.users-table td {
+        padding: 0.5rem 0.5rem;
+        font-size: 0.78rem;
+      }
+      table.users-table .meta {
+        font-size: 0.7rem;
+      }
+    }
+
+    /* ── Danger reset modal ── */
+    .admin-modal-overlay[hidden],
+    #reset-modal-overlay[hidden] {
+      display: none !important;
+    }
+
+    #reset-modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      background: rgba(18, 12, 8, 0.78);
+      backdrop-filter: blur(3px);
+    }
+
+    .admin-modal-sheet {
+      width: min(24rem, 100%);
+      background: rgba(44, 36, 28, 0.97);
+      border: 1px solid rgba(255, 248, 238, 0.16);
+      border-radius: 14px;
+      padding: 1.15rem 1.25rem 1.2rem;
+      box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.55),
+        inset 0 0 0 1px rgba(92, 61, 46, 0.35);
+      color: var(--cream);
+    }
+
+    .admin-modal-sheet h3 {
+      margin: 0 0 0.55rem;
+      font-family: "Courier New", monospace;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: var(--paper);
+      letter-spacing: 0.02em;
+    }
+
+    .admin-modal-sheet > p {
+      margin: 0 0 0.85rem;
+      font-size: 0.84rem;
+      line-height: 1.45;
+      opacity: 0.92;
+    }
+
+    .admin-modal-sheet .muted {
+      font-size: 0.78rem;
+      opacity: 0.76;
+      margin-bottom: 0.65rem;
+    }
+
+    .admin-modal-sheet label.confirm-label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+      margin-bottom: 0.85rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--cream);
+    }
+
+    .admin-modal-sheet input.confirm-input {
+      font: inherit;
+      padding: 0.55rem 0.65rem;
+      border-radius: 8px;
+      border: 1.5px solid rgba(255, 248, 238, 0.22);
+      background: rgba(255, 248, 238, 0.98);
+      color: #3e2723;
+    }
+
+    .admin-modal-sheet input.confirm-input:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(255, 183, 3, 0.35);
+    }
+
+    .admin-modal-actions {
+      display: flex;
+      gap: 0.55rem;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      margin-top: 0.35rem;
+    }
+
+    .admin-modal-actions button.modal-btn-base {
+      font: inherit;
+      font-weight: 700;
+      padding: 0.5rem 0.85rem;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+    }
+
+    .admin-modal-actions button.modal-btn-ghost {
+      color: var(--cream);
+      background: rgba(244, 232, 212, 0.08);
+      border: 1px solid rgba(255, 248, 238, 0.18);
+    }
+
+    .admin-modal-actions button.modal-btn-accent {
+      color: var(--wood);
+      background: linear-gradient(180deg, #ffe066, var(--accent));
+      box-shadow: 0 3px 0 rgba(92, 61, 46, 0.4);
+    }
+
+    .admin-modal-actions button.modal-btn-accent:active {
+      transform: translateY(1px);
+      box-shadow: 0 2px 0 rgba(92, 61, 46, 0.4);
+    }
+
+    .admin-modal-actions button.modal-btn-danger {
+      color: #ffcdd2;
+      background: linear-gradient(180deg, #d84315, #bf360c);
+      box-shadow: 0 3px 0 rgba(0, 0, 0, 0.45);
+      font-weight: 700;
+    }
+
+    .admin-modal-actions button.modal-btn-danger:active:not(:disabled) {
+      transform: translateY(1px);
+      box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45);
+    }
+
+    .admin-modal-actions button.modal-btn-danger:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .admin-modal-actions button.modal-btn-ghost:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+
+<body class="admin">
+  <div class="admin-shell">
+    <header class="admin-header">
+      <div>
+        <h1>Opsy Wopsy · Admin</h1>
+        <p class="subtitle">Players, emails, and play history.</p>
+      </div>
+      <a class="home-link" href="./">&larr; Back to game</a>
+    </header>
+
+    <section id="auth-card" class="admin-card" aria-labelledby="auth-title">
+      <h2 id="auth-title" style="margin: 0 0 0.5rem; font-size: 1.05rem;">Sign in</h2>
+      <p class="subtitle" style="margin: 0 0 0.75rem;">
+        Enter the admin password (set by <code>ADMIN_PASSWORD</code> on the server).
+      </p>
+      <form class="admin-form" id="auth-form" autocomplete="off">
+        <label>
+          Admin password
+          <input type="password" id="password-input" name="password" required autocomplete="current-password" />
+        </label>
+        <p class="err" id="auth-error" role="alert"></p>
+        <div class="actions">
+          <button type="submit" class="btn">Sign in</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="data-card" class="admin-card" hidden aria-labelledby="data-title">
+      <h2 id="data-title" style="margin: 0 0 0.75rem; font-size: 1.05rem;">Players</h2>
+      <div id="default-password-warning" class="admin-warning" hidden>
+        Heads up: this server is still using the default admin password
+        (<code>opsy-admin</code>). Set the <code>ADMIN_PASSWORD</code> environment
+        variable before exposing the admin page publicly.
+      </div>
+      <div class="stat-strip">
+        <div class="stat-card"><span class="lbl">Players</span><span class="val" id="stat-users">—</span></div>
+        <div class="stat-card"><span class="lbl">Plays</span><span class="val" id="stat-plays">—</span></div>
+        <div class="stat-card"><span class="lbl">Docs collected</span><span class="val" id="stat-docs">—</span></div>
+      </div>
+
+      <div class="toolbar">
+        <input type="search" id="user-search" placeholder="Search name, username, or email…"
+          aria-label="Search players" />
+        <button type="button" id="export-btn">Export Excel</button>
+        <button type="button" id="reset-all-btn" class="danger">Reset all data</button>
+        <button type="button" id="refresh-btn" class="ghost">Refresh</button>
+        <button type="button" id="logout-btn" class="ghost">Sign out</button>
+      </div>
+
+      <p id="admin-status" class="admin-status" aria-live="polite"></p>
+
+      <div class="users-table-wrap">
+        <table class="users-table" aria-label="Registered players">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Username</th>
+              <th>Email</th>
+              <th class="num">Plays</th>
+              <th class="num">Best</th>
+              <th>Scores</th>
+              <th class="num">Total docs</th>
+              <th>Last played</th>
+              <th>Joined</th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+        <div id="users-empty" class="empty" hidden>No players yet.</div>
+      </div>
+    </section>
+  </div>
+
+  <div id="reset-modal-overlay" hidden>
+    <div
+      id="reset-modal-dialog"
+      class="admin-modal-sheet"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="reset-modal-heading"
+    >
+      <h3 id="reset-modal-heading">Reset all data?</h3>
+
+      <div id="reset-modal-step-warn">
+        <p id="reset-modal-warn-msg">
+          This permanently deletes all registered players and every score.
+          This cannot be undone.
+        </p>
+        <div class="admin-modal-actions">
+          <button type="button" class="modal-btn-base modal-btn-ghost" id="reset-modal-cancel-warn">Cancel</button>
+          <button type="button" class="modal-btn-base modal-btn-accent" id="reset-modal-next">Continue</button>
+        </div>
+      </div>
+
+      <div id="reset-modal-step-type" hidden>
+        <p class="muted">
+          Last step — type <strong>RESET</strong> (all caps) to confirm deletion.
+        </p>
+        <label class="confirm-label" for="reset-confirm-input">
+          Confirmation
+          <input
+            type="text"
+            id="reset-confirm-input"
+            class="confirm-input"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </label>
+        <div class="admin-modal-actions">
+          <button type="button" class="modal-btn-base modal-btn-ghost" id="reset-modal-cancel-type">Cancel</button>
+          <button type="button" class="modal-btn-base modal-btn-danger" id="reset-modal-confirm" disabled>
+            Erase everything
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*
+     * Admin page bootstrap. The password lives in sessionStorage so it does not
+     * persist past the tab. All requests fail closed if the password is missing.
+     */
+    const STORAGE_KEY = "opsyAdminPassword";
+    const apiBase =
+      typeof window !== "undefined" && window.__API_BASE__
+        ? String(window.__API_BASE__).replace(/\/+$/, "")
+        : "";
+
+    const authCard = document.getElementById("auth-card");
+    const dataCard = document.getElementById("data-card");
+    const passwordInput = /** @type {HTMLInputElement} */ (
+      document.getElementById("password-input")
+    );
+    const authError = document.getElementById("auth-error");
+    const usersBody = document.getElementById("users-body");
+    const usersEmpty = document.getElementById("users-empty");
+    const search = /** @type {HTMLInputElement} */ (
+      document.getElementById("user-search")
+    );
+    const defaultWarning = document.getElementById("default-password-warning");
+    const adminStatus = document.getElementById("admin-status");
+    const resetModalOverlay = document.getElementById("reset-modal-overlay");
+    const resetModalStepWarn = document.getElementById("reset-modal-step-warn");
+    const resetModalStepType = document.getElementById("reset-modal-step-type");
+    const resetModalHeading = document.getElementById("reset-modal-heading");
+    const resetConfirmInput = /** @type {HTMLInputElement} */ (
+      document.getElementById("reset-confirm-input")
+    );
+    const resetModalConfirmBtn = /** @type {HTMLButtonElement} */ (
+      document.getElementById("reset-modal-confirm")
+    );
+    const resetAllBtn = /** @type {HTMLButtonElement} */ (
+      document.getElementById("reset-all-btn")
+    );
+    /** @type {AbortController | null} */
+    let resetModalEscCtl = null;
+
+    /** @type {Array<{ id:number; name:string; username:string; email:string; scores:number[]; createdAt:string; playCount:number; bestScore:number; totalDocs:number; lastPlayed:string|null }>} */
+    let cachedRows = [];
+    /** @type {Array<{ userId:number; name:string; username:string; email:string; scoreId:number|null; score:number|null; docsCollected:number|null; laps:number|null; playedAt:string|null; joinedAt:string }>} */
+    let cachedScoreRows = [];
+
+    function apiUrl(path) {
+      const p = path.startsWith("/") ? path : "/" + path;
+      return apiBase + p;
+    }
+
+    function escapeHtml(s) {
+      return String(s ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function fmtDate(raw) {
+      if (!raw) return "—";
+      const d = new Date(String(raw));
+      if (Number.isNaN(d.getTime())) return String(raw);
+      return d.toLocaleString(undefined, {
+        dateStyle: "short",
+        timeStyle: "short",
+      });
+    }
+
+    function fmtNum(n) {
+      const x = Number(n);
+      return Number.isFinite(x) ? x.toLocaleString() : "—";
+    }
+
+    function excelCell(value) {
+      if (value === null || value === undefined || value === "") return "";
+      return escapeHtml(String(value));
+    }
+
+    function downloadExcel() {
+      if (!cachedScoreRows.length) return;
+      const rows = cachedScoreRows.map((r) => {
+        return "<tr>" +
+          "<td>" + excelCell(r.name) + "</td>" +
+          "<td>" + excelCell(r.username) + "</td>" +
+          "<td>" + excelCell(r.email) + "</td>" +
+          "<td>" + excelCell(r.score) + "</td>" +
+          "<td>" + excelCell(r.docsCollected) + "</td>" +
+          "<td>" + excelCell(r.laps) + "</td>" +
+          "<td>" + excelCell(r.playedAt ? fmtDate(r.playedAt) : "") + "</td>" +
+          "<td>" + excelCell(r.joinedAt ? fmtDate(r.joinedAt) : "") + "</td>" +
+          "</tr>";
+      }).join("");
+      const html =
+        "<!doctype html><html><head><meta charset=\"utf-8\" /></head><body>" +
+        "<table><thead><tr>" +
+        "<th>Name</th><th>Username</th><th>Email</th><th>Score</th>" +
+        "<th>Docs collected</th><th>Laps</th><th>Played at</th><th>Joined at</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table>" +
+        "</body></html>";
+      const blob = new Blob([html], {
+        type: "application/vnd.ms-excel;charset=utf-8",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const stamp = new Date().toISOString().slice(0, 10);
+      a.href = url;
+      a.download = "opsy-wopsy-scores-" + stamp + ".xls";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function setSignedIn(signedIn) {
+      authCard.hidden = signedIn;
+      dataCard.hidden = !signedIn;
+    }
+
+    function getPassword() {
+      try {
+        return sessionStorage.getItem(STORAGE_KEY) || "";
+      } catch {
+        return "";
+      }
+    }
+
+    function setPassword(password) {
+      try {
+        if (password) sessionStorage.setItem(STORAGE_KEY, password);
+        else sessionStorage.removeItem(STORAGE_KEY);
+      } catch {
+        /* ignore */
+      }
+    }
+
+    function setAdminStatus(msg, kind) {
+      if (!adminStatus) return;
+      adminStatus.textContent = msg || "";
+      adminStatus.className = "admin-status" + (kind === "err" ? " err" : kind === "ok" ? " ok" : "");
+    }
+
+    async function fetchUsers(password) {
+      const res = await fetch(apiUrl("/api/admin/users"), {
+        headers: { Authorization: "Bearer " + password },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          (data && typeof data === "object" && data.error) ||
+          "Could not fetch admin data (" + res.status + ").";
+        throw new Error(msg);
+      }
+      return data;
+    }
+
+    function renderRows(rows) {
+      usersBody.innerHTML = "";
+      if (!rows.length) {
+        usersEmpty.hidden = false;
+        return;
+      }
+      usersEmpty.hidden = true;
+      const frag = document.createDocumentFragment();
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + escapeHtml(r.name) + "</td>" +
+          "<td class=\"username\">@" + escapeHtml(r.username) + "</td>" +
+          "<td class=\"email\"><a href=\"mailto:" + escapeHtml(r.email) + "\">" +
+            escapeHtml(r.email) + "</a></td>" +
+          "<td class=\"num\">" + fmtNum(r.playCount) + "</td>" +
+          "<td class=\"num\">" + fmtNum(r.bestScore) + "</td>" +
+          "<td class=\"scores-list\">" + escapeHtml((r.scores || []).join(", ") || "—") + "</td>" +
+          "<td class=\"num\">" + fmtNum(r.totalDocs) + "</td>" +
+          "<td class=\"meta\">" + escapeHtml(fmtDate(r.lastPlayed)) + "</td>" +
+          "<td class=\"meta\">" + escapeHtml(fmtDate(r.createdAt)) + "</td>";
+        frag.appendChild(tr);
+      }
+      usersBody.appendChild(frag);
+    }
+
+    function applyFilter() {
+      const q = (search.value || "").trim().toLowerCase();
+      if (!q) {
+        renderRows(cachedRows);
+        return;
+      }
+      const filtered = cachedRows.filter((r) => {
+        return (
+          (r.name || "").toLowerCase().includes(q) ||
+          (r.username || "").toLowerCase().includes(q) ||
+          (r.email || "").toLowerCase().includes(q)
+        );
+      });
+      renderRows(filtered);
+    }
+
+    async function loadAndRender(password) {
+      try {
+        setAdminStatus("", "");
+        const data = await fetchUsers(password);
+        cachedRows = Array.isArray(data.users) ? data.users : [];
+        cachedScoreRows = Array.isArray(data.scoreRows) ? data.scoreRows : [];
+        document.getElementById("stat-users").textContent = fmtNum(
+          data.totals?.users ?? cachedRows.length
+        );
+        document.getElementById("stat-plays").textContent = fmtNum(
+          data.totals?.plays ?? 0
+        );
+        document.getElementById("stat-docs").textContent = fmtNum(
+          data.totals?.docs ?? 0
+        );
+        defaultWarning.hidden = !data.defaultPasswordInUse;
+        applyFilter();
+        return true;
+      } catch (err) {
+        return err instanceof Error ? err.message : "Unknown error";
+      }
+    }
+
+    function openResetModal() {
+      if (!resetModalOverlay) return;
+      resetModalEscCtl?.abort();
+      resetModalEscCtl = new AbortController();
+      resetModalOverlay.hidden = false;
+      resetModalStepWarn.hidden = false;
+      resetModalStepType.hidden = true;
+      resetModalHeading.textContent = "Reset all data?";
+      resetConfirmInput.value = "";
+      resetModalConfirmBtn.disabled = true;
+      document.addEventListener(
+        "keydown",
+        (ev) => {
+          if (!resetModalOverlay || resetModalOverlay.hidden) return;
+          if (ev.key === "Escape") {
+            closeResetModal();
+          }
+        },
+        { signal: resetModalEscCtl.signal },
+      );
+
+      /** @type {HTMLButtonElement | null} */
+      const firstFocus = document.getElementById("reset-modal-cancel-warn");
+      firstFocus?.focus();
+    }
+
+    function closeResetModal() {
+      if (!resetModalOverlay) return;
+      resetModalOverlay.hidden = true;
+      resetModalStepWarn.hidden = false;
+      resetModalStepType.hidden = true;
+      resetConfirmInput.value = "";
+      resetModalConfirmBtn.disabled = true;
+      resetModalEscCtl?.abort();
+      resetModalEscCtl = null;
+      resetAllBtn?.focus();
+    }
+
+    function showResetConfirmationStepTwo() {
+      resetModalHeading.textContent = "Confirm reset";
+      resetModalStepWarn.hidden = true;
+      resetModalStepType.hidden = false;
+      resetConfirmInput.value = "";
+      resetModalConfirmBtn.disabled = true;
+      resetConfirmInput.focus();
+    }
+
+    async function executeResetAfterTypedConfirm() {
+      const password = getPassword();
+      if (!password) return;
+      setAdminStatus("", "");
+
+      try {
+        const res = await fetch(apiUrl("/api/admin/users"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: "Bearer " + password,
+          },
+          body: JSON.stringify({ reset: true }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            (data && typeof data === "object" && data.error) ||
+            "Could not reset data (" + res.status + ").";
+          throw new Error(msg);
+        }
+        search.value = "";
+        const refresh = await loadAndRender(password);
+        closeResetModal();
+        if (refresh === true) {
+          setAdminStatus("All data has been reset.", "ok");
+        } else {
+          setAdminStatus(
+            typeof refresh === "string" ? refresh : "Reset succeeded but refresh failed.",
+            "err"
+          );
+        }
+      } catch (e) {
+        closeResetModal();
+        setAdminStatus(
+          e instanceof Error ? e.message : "Reset failed.",
+          "err"
+        );
+      }
+    }
+
+    function beginResetModalFlow() {
+      const password = getPassword();
+      if (!password) return;
+      setAdminStatus("", "");
+      openResetModal();
+    }
+
+    document.getElementById("auth-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      authError.textContent = "";
+      const password = (passwordInput.value || "").trim();
+      if (!password) return;
+      const result = await loadAndRender(password);
+      if (result === true) {
+        setPassword(password);
+        setSignedIn(true);
+        passwordInput.value = "";
+      } else {
+        authError.textContent =
+          typeof result === "string" ? result : "Could not sign in.";
+      }
+    });
+
+    document.getElementById("refresh-btn").addEventListener("click", async () => {
+      const password = getPassword();
+      if (!password) return;
+      const result = await loadAndRender(password);
+      if (result !== true) {
+        authError.textContent =
+          typeof result === "string" ? result : "Could not refresh.";
+        setPassword("");
+        setSignedIn(false);
+      }
+    });
+
+    document.getElementById("logout-btn").addEventListener("click", () => {
+      setPassword("");
+      cachedRows = [];
+      cachedScoreRows = [];
+      renderRows([]);
+      setSignedIn(false);
+      passwordInput.focus();
+    });
+
+    document.getElementById("export-btn").addEventListener("click", downloadExcel);
+
+    document.getElementById("reset-all-btn").addEventListener("click", () => {
+      beginResetModalFlow();
+    });
+
+    resetModalOverlay?.addEventListener("click", (e) => {
+      if (e.target === resetModalOverlay) closeResetModal();
+    });
+
+    document.getElementById("reset-modal-cancel-warn")?.addEventListener("click", closeResetModal);
+    document.getElementById("reset-modal-next")?.addEventListener(
+      "click",
+      showResetConfirmationStepTwo,
+    );
+    document.getElementById("reset-modal-cancel-type")?.addEventListener("click", closeResetModal);
+
+    resetConfirmInput?.addEventListener("input", () => {
+      const ok = resetConfirmInput.value.trim() === "RESET";
+      resetModalConfirmBtn.disabled = !ok;
+    });
+
+    resetConfirmInput?.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter" || resetModalConfirmBtn.disabled) return;
+      e.preventDefault();
+      void executeResetAfterTypedConfirm();
+    });
+
+    resetModalConfirmBtn?.addEventListener("click", () => {
+      if (resetModalConfirmBtn.disabled) return;
+      void executeResetAfterTypedConfirm();
+    });
+
+    search.addEventListener("input", applyFilter);
+
+    /* Auto-restore on revisit so the page is useful as a quick check. */
+    (async function init() {
+      const password = getPassword();
+      if (!password) {
+        setSignedIn(false);
+        passwordInput.focus();
+        return;
+      }
+      const result = await loadAndRender(password);
+      if (result === true) {
+        setSignedIn(true);
+      } else {
+        setPassword("");
+        setSignedIn(false);
+        if (typeof result === "string") {
+          authError.textContent = result;
+        }
+        passwordInput.focus();
+      }
+    })();
+  </script>
+</body>
+
+</html>

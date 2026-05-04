@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <title>Opsy Wopsy</title>
+  <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
+  <link rel="stylesheet" href="./style.css?v=9" />
+  <!-- The API and the static site are served from the same Express app in /server, so default to same-origin. Override `window.__API_BASE__` before this script if you run the page from a separate dev server (e.g. Vite). -->
+  <script>
+    window.__API_BASE__ =
+      window.__API_BASE__ !== undefined && window.__API_BASE__ !== null
+        ? String(window.__API_BASE__)
+        : "";
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+</head>
+
+<body>
+  <!--
+    Phone-portrait rotation prompt. Shown only on coarse-pointer devices in
+    portrait orientation; the game itself is designed for landscape and is
+    much better playable that way. CSS hides this on desktop and on landscape.
+  -->
+  <div id="rotate-prompt" class="rotate-prompt" aria-hidden="true">
+    <div class="rotate-prompt-card">
+      <div class="rotate-prompt-icon" aria-hidden="true">
+        <svg viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Rotate device">
+          <rect x="14" y="6" width="22" height="40" rx="4" ry="4" fill="none" stroke="currentColor" stroke-width="3" />
+          <rect x="20" y="12" width="10" height="26" fill="currentColor" opacity="0.25" />
+          <path d="M40 38 q12 -2 16 -14" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+          <path d="M52 18 l4 6 -7 1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+      </div>
+      <h2 class="rotate-prompt-title">Rotate your phone</h2>
+      <p class="rotate-prompt-text">
+        Opsy Wopsy plays best in landscape. Turn your phone sideways to start.
+      </p>
+    </div>
+  </div>
+
+  <section id="pre-game" class="pre-game" aria-labelledby="pre-game-title">
+    <div class="pre-game-card">
+      <h1 id="pre-game-title" class="pre-game-brand">Opsy Wopsy</h1>
+      <p class="pre-game-lede">Enter your details to play and appear on the scoreboard.</p>
+      <div id="resume-banner" class="resume-banner" hidden>
+        <span id="resume-banner-text" class="resume-banner-text"></span>
+        <button type="button" id="resume-keep-btn" class="btn-secondary">Keep playing</button>
+        <button type="button" id="resume-clear-btn" class="resume-clear-btn">Sign out and use a different profile</button>
+      </div>
+      <form id="player-form" class="player-form" method="post" action="#" autocomplete="on">
+        <label class="field">
+          <span>Name</span>
+          <input name="name" type="text" required maxlength="120" placeholder="Your name" autocomplete="name" />
+        </label>
+        <label class="field">
+          <span>Username</span>
+          <input name="username" type="text" required minlength="2" maxlength="32" pattern="[a-zA-Z0-9._\-]+"
+            title="Short handle only: letters, numbers, dots, underscores, hyphens (not your email)"
+            placeholder="e.g. hey_opsy" autocomplete="username" />
+        </label>
+        <label class="field">
+          <span>Email</span>
+          <input name="email" type="email" required placeholder="you@example.com" autocomplete="email" />
+        </label>
+        <p id="player-form-error" class="form-error" role="alert"></p>
+        <button type="button" id="opsy-start-game" class="btn-primary">Start game</button>
+      </form>
+      <a class="admin-login-link" href="./admin.html">Admin login</a>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <div class="game-stage">
+      <div id="game-container"></div>
+
+      <!-- Phaser HUD shows session + change action; this hidden control keeps one exit path for bootstrap. -->
+      <button type="button" id="change-player-btn" hidden aria-hidden="true">Change player</button>
+
+      <section id="leaderboard-panel" class="leaderboard-panel leaderboard-overlay" hidden
+        aria-labelledby="leaderboard-heading">
+        <div class="leaderboard-head">
+          <div class="leaderboard-head-row">
+            <h2 id="leaderboard-heading">Scoreboard</h2>
+            <button type="button" id="leaderboard-restart-btn" class="leaderboard-restart-btn">
+              Restart
+            </button>
+          </div>
+          <p id="leaderboard-hint" class="leaderboard-hint"></p>
+        </div>
+        <div class="leaderboard-scroll">
+          <table class="leaderboard-table" aria-label="Top scores">
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Username</th>
+                <th scope="col">Name</th>
+                <th scope="col">Score</th>
+                <th scope="col">Docs</th>
+                <th scope="col">Played</th>
+              </tr>
+            </thead>
+            <tbody id="leaderboard-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <footer class="page-footer">
+      <p>
+        The dog runs automatically &mdash; faster as you go. Jump with
+        <kbd>Space</kbd> / <kbd>W</kbd> / <kbd>↑</kbd>, or use <strong>Restart</strong>
+        in the top bar. After game over, use <strong>Restart</strong> on the scoreboard
+        or in the top bar; on a keyboard you can also press <kbd>R</kbd>.
+        On a phone, tap below the top bar to jump.
+      </p>
+    </footer>
+  </div>
+
+  <!-- `?v=` bumps cache when bootstrap changes (avoids stale JS referencing removed symbols). -->
+  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=32"></script>
+  <script>
+    document.getElementById("opsy-bootstrap")?.addEventListener("error", function () {
+      var el = document.getElementById("player-form-error");
+      if (el) {
+        el.textContent =
+          "Could not load game scripts. Hard-refresh the page (Ctrl+Shift+R) or check that you are opening the site from the game server (npm start in the server folder).";
+      }
+    });
+  </script>
+</body>
+
+</html>

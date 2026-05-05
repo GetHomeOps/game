@@ -8,7 +8,7 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Opsy Wopsy</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./style.css?v=9" />
+  <link rel="stylesheet" href="./style.css?v=11" />
   <!-- The API and the static site are served from the same Express app in /server, so default to same-origin. Override `window.__API_BASE__` before this script if you run the page from a separate dev server (e.g. Vite). -->
   <script>
     window.__API_BASE__ =
@@ -78,6 +78,14 @@
     <div class="game-stage">
       <div id="game-container"></div>
 
+      <div id="game-loading-overlay" class="game-loading-overlay" hidden role="status" aria-live="polite"
+        aria-busy="false">
+        <div class="game-loading-inner">
+          <div class="game-loading-spinner" aria-hidden="true"></div>
+          <p class="game-loading-text">Loading…</p>
+        </div>
+      </div>
+
       <!-- Phaser HUD shows session + change action; this hidden control keeps one exit path for bootstrap. -->
       <button type="button" id="change-player-btn" hidden aria-hidden="true">Change player</button>
 
@@ -122,7 +130,7 @@
   </div>
 
   <!-- `?v=` bumps cache when bootstrap changes (avoids stale JS referencing removed symbols). -->
-  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=32"></script>
+  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=34"></script>
   <script>
     document.getElementById("opsy-bootstrap")?.addEventListener("error", function () {
       var el = document.getElementById("player-form-error");

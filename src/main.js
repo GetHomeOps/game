@@ -1,6 +1,9 @@
 import BootScene from "./scenes/BootScene.js";
 import StartScene from "./scenes/StartScene.js";
-import GameScene from "./scenes/GameScene.js";
+/* `?v=` busts the browser HTTP cache when GameScene gameplay changes (the
+   parent main.js already does the same so users never end up on a stale
+   bundle that combines old scene code with new bootstrap / config). */
+import GameScene from "./scenes/GameScene.js?v=2";
 
 const Phaser = globalThis.Phaser;
 if (!Phaser) {

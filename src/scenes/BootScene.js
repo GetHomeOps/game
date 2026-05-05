@@ -521,6 +521,7 @@ export default class BootScene extends Phaser.Scene {
       });
     }
 
+    globalThis.dispatchEvent(new CustomEvent("opsy:game-ready"));
     this.scene.start("StartScene");
   }
 }

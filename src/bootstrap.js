@@ -4,6 +4,7 @@ import { refreshLeaderboardTable } from "./leaderboard-ui.js";
 const STORAGE_KEY = "opsyPlayer";
 
 let domGameListenersAttached = false;
+let gameReadyListenerAttached = false;
 /** @type {(() => void) | undefined} */
 let scoresUpdatedListener;
 /** @type {(() => void) | undefined} */
@@ -23,8 +24,9 @@ function teardownDomGameListeners() {
 }
 
 async function stopPhaserAndShell() {
+  setGameLoadingVisible(false);
   try {
-    const mod = await import("./main.js?v=20");
+    const mod = await import("./main.js?v=22");
     if (typeof mod.destroyOpsyPhaserGame === "function") {
       mod.destroyOpsyPhaserGame();
     }
@@ -147,9 +149,30 @@ function showPreGame() {
   if (appSection) appSection.hidden = true;
 }
 
+function setGameLoadingVisible(visible) {
+  const el = document.getElementById("game-loading-overlay");
+  if (!el) return;
+  el.hidden = !visible;
+  el.setAttribute("aria-busy", visible ? "true" : "false");
+}
+
+/** Hide loading once BootScene finishes asset work (see BootScene.js). */
+function ensureGameReadyListener() {
+  if (gameReadyListenerAttached) return;
+  gameReadyListenerAttached = true;
+  globalThis.addEventListener("opsy:game-ready", () => setGameLoadingVisible(false));
+}
+
 async function loadPhaser(player) {
-  const { startGame } = await import("./main.js?v=20");
-  startGame(player);
+  ensureGameReadyListener();
+  setGameLoadingVisible(true);
+  try {
+    const { startGame } = await import("./main.js?v=22");
+    startGame(player);
+  } catch (err) {
+    setGameLoadingVisible(false);
+    throw err;
+  }
 
   if (!domGameListenersAttached) {
     domGameListenersAttached = true;

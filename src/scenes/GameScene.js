@@ -392,6 +392,13 @@ export default class GameScene extends Phaser.Scene {
     this.isTouch = this.sys.game.device.input.touch;
     if (this.isTouch) this.input.addPointer(2);
 
+    /* Pending pointer jump set by the global pointerdown listener. Read once
+       per `update` so we keep the existing jump-buffer / coyote-time pipeline
+       below; using an event listener (instead of polling `pointer.justDown`)
+       guarantees we never miss a tap that started + ended between frames,
+       which was the root cause of "tapping does nothing" on mobile Safari. */
+    this.pendingPointerJump = false;
+
     /* State */
     this.lives = LEVEL.startLives;
     this.score = 0;
@@ -516,6 +523,22 @@ export default class GameScene extends Phaser.Scene {
     if (this.isTouch) {
       this.buildMobileJumpHint();
     }
+
+    /*
+     * Tap-to-jump: an event-driven listener instead of polling
+     * `pointer.justDown` in `update`. Polling missed taps on mobile Safari
+     * because the touch could go down + up inside a single 16ms frame, and
+     * because `justDown` is only ever set on `pointer1`/`pointer2` — never on
+     * the primary `mousePointer` that hybrid touchscreens occasionally route
+     * through. The HUD strip (above `hudBottomY`) is excluded so the
+     * Restart / Change-player buttons keep working.
+     */
+    this.input.on("pointerdown", (pointer) => {
+      if (this.isGameOver || this.hasWon) return;
+      if (this.time.now < this.jumpInputUnlockAt) return;
+      if (this.hudBottomY > 0 && pointer.y <= this.hudBottomY) return;
+      this.pendingPointerJump = true;
+    });
 
     this._restartFromLeaderboardDom = () => {
       if (this.isGameOver || this.hasWon) this.scene.restart();
@@ -1329,28 +1352,18 @@ export default class GameScene extends Phaser.Scene {
       this.coyoteCounter -= delta;
     }
 
-    let touchJump = false;
-    if (this.isTouch && this.hudBottomY > 0) {
-      for (const key of ["pointer1", "pointer2"]) {
-        const p = this.input[key];
-        /* Full playfield: everything below the HUD bar registers as jump. */
-        if (p && p.justDown && p.y > this.hudBottomY) {
-          touchJump = true;
-          break;
-        }
-      }
-    }
+    /* Pointer jumps come in via `pointerdown` (see `create`). Drain the flag
+       here so each tap counts exactly once and feeds the same buffer the
+       keyboard does. */
+    const pointerJump = this.pendingPointerJump;
+    this.pendingPointerJump = false;
 
     const kbJump =
       Phaser.Input.Keyboard.JustDown(this.spaceKey) ||
       Phaser.Input.Keyboard.JustDown(this.cursors.up) ||
       Phaser.Input.Keyboard.JustDown(this.keys.w);
 
-    if (touchJump && this.time.now < this.jumpInputUnlockAt) {
-      touchJump = false;
-    }
-
-    if (kbJump || touchJump) {
+    if (kbJump || pointerJump) {
       this.jumpBufferCounter = LEVEL.jumpBufferMs;
     } else {
       this.jumpBufferCounter -= delta;

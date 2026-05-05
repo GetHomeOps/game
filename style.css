@@ -1,7 +1,8 @@
 :root {
   --cream: #f4e8d4;
   --wood: #5c3d2e;
-  --paper: #fff8ee;
+  /* Warmer, slightly more golden cream (closer to the pre–flat-wash look). */
+  --paper: #fff1d6;
   --accent: #ffb703;
   --danger: #bf360c;
   /* Warm wash over scrollable BG only; GameScene reads this for canvas draw (Phaser single canvas). */
@@ -40,9 +41,17 @@ body {
 }
 
 #app {
-  max-width: 1000px;
+  /* Wider frame on desktop — most browsers had unused side margins at 1000px. */
+  max-width: min(1280px, 96vw);
   margin: 0 auto;
-  padding: 0.5rem 0.5rem 0.4rem;
+  padding: 0.5rem 0.75rem 0.45rem;
+}
+
+@media (min-width: 1100px) {
+  #app {
+    max-width: min(1420px, 94vw);
+    padding: 0.6rem 1rem 0.5rem;
+  }
 }
 
 #app[hidden] {
@@ -389,7 +398,12 @@ body {
   justify-content: center;
   flex-direction: column;
   gap: 1rem;
-  background: linear-gradient(165deg, #fff8ee 0%, #f4e8d4 55%, #e8dcc8 100%);
+  background: linear-gradient(
+    165deg,
+    var(--paper) 0%,
+    var(--cream) 55%,
+    #e8dcc8 100%
+  );
   box-shadow: inset 0 0 0 1px rgba(92, 61, 46, 0.12);
   pointer-events: none;
 }
@@ -473,9 +487,9 @@ body {
 }
 
 /*
- * Fullscreen toggle. Floats in the top-right of the game stage so anyone on
- * mobile can banish the URL bar / chrome with one tap. Hidden on the join
- * form; only useful once the game shell is up.
+ * Fullscreen toggle — touch devices only. Desktop Chrome / mice get
+ * `(pointer: fine) + (hover: hover)` and hide this via CSS; bootstrap.js
+ * also skips binding so we never call requestFullscreen there.
  */
 .fullscreen-toggle-btn {
   position: absolute;
@@ -506,6 +520,12 @@ body {
 
 .fullscreen-toggle-btn[aria-pressed="true"] svg {
   transform: rotate(45deg);
+}
+
+@media (pointer: fine) and (hover: hover) {
+  .fullscreen-toggle-btn {
+    display: none !important;
+  }
 }
 
 /*
@@ -698,27 +718,32 @@ kbd {
  * phones (~500px), and tablets (768px+) all benefit from going full-bleed.
  * The previous `max-height: 540px` left every device above that threshold
  * stuck with the desktop 1000px frame, which felt tiny on a phone screen.
+ *
+ * Everything below is scoped to `body.opsy-game-shell` (the game is showing).
+ * Without that guard, the pre-game form was unscrollable in iPhone landscape:
+ * `html, body { height: 100%; overflow: hidden }` fired as soon as the user
+ * rotated, locking the body to the visible viewport even though the form
+ * was taller (resume banner + 3 fields + button + admin link).
  */
 @media (orientation: landscape) and (hover: none) and (pointer: coarse) {
-  html,
-  body {
+  body.opsy-game-shell {
     height: 100%;
     overflow: hidden;
   }
-  #app {
+  body.opsy-game-shell #app {
     max-width: none;
     height: 100dvh;
     width: 100vw;
     padding: 0;
     margin: 0;
   }
-  .game-stage {
+  body.opsy-game-shell .game-stage {
     height: 100dvh;
     width: 100vw;
     border-radius: 0;
     box-shadow: none;
   }
-  #game-container {
+  body.opsy-game-shell #game-container {
     height: 100%;
     width: 100%;
     /*
@@ -730,7 +755,7 @@ kbd {
     align-items: center;
     justify-content: center;
   }
-  .page-footer {
+  body.opsy-game-shell .page-footer {
     display: none;
   }
 }

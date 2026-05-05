@@ -27,7 +27,7 @@ async function stopPhaserAndShell() {
   clearPendingLandscapeListener();
   setGameLoadingVisible(false);
   try {
-    const mod = await import("./main.js?v=24");
+    const mod = await import("./main.js?v=26");
     if (typeof mod.destroyOpsyPhaserGame === "function") {
       mod.destroyOpsyPhaserGame();
     }
@@ -324,6 +324,23 @@ function isIosLikeDevice() {
 }
 
 /**
+ * Fullscreen is only offered on primary-touch / coarse-pointer surfaces
+ * (phones, most tablets). Desktop mice report fine pointer + hover — no
+ * in-page fullscreen, larger framed game only.
+ */
+function shouldOfferMobileFullscreen() {
+  if (isStandalonePwa()) return false;
+  try {
+    return (
+      globalThis.matchMedia?.("(hover: none) and (pointer: coarse)").matches ===
+      true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Best-effort fullscreen — modern Chromium / Firefox / Safari iPad all honour
  * the request; iPhone Safari ignores fullscreen on non-video elements (PWA
  * "Add to Home Screen" is the workaround there). Must be called from a user
@@ -413,17 +430,11 @@ function showIosFullscreenHint(anchorBtn) {
 function bindFullscreenControls() {
   const btn = document.getElementById("fullscreen-toggle-btn");
   if (!btn) return;
-  /*
-   * Hide the button entirely when fullscreen would be a no-op:
-   *   - already running as an installed PWA (effectively fullscreen)
-   *   - iPhone Safari without the Fullscreen API and not yet a PWA: the
-   *     button used to silently fail; surface a tooltip pointing at the
-   *     Share → Add to Home Screen workaround instead.
-   */
-  if (isStandalonePwa()) {
+  if (!shouldOfferMobileFullscreen()) {
     btn.hidden = true;
     return;
   }
+  btn.hidden = false;
   if (btn.dataset.opsyBound !== "1") {
     btn.dataset.opsyBound = "1";
     btn.addEventListener("click", () => {
@@ -443,7 +454,7 @@ async function loadPhaser(player) {
   ensureGameReadyListener();
   setGameLoadingVisible(true);
   try {
-    const { startGame } = await import("./main.js?v=24");
+    const { startGame } = await import("./main.js?v=26");
     startGame(player);
   } catch (err) {
     setGameLoadingVisible(false);
@@ -502,9 +513,12 @@ async function startApp() {
           syncResumeBanner(null);
           return;
         }
-        /* User-initiated click — request fullscreen here; later code paths run
-           after `await` and would lose the gesture. */
-        requestPageFullscreen();
+        /* User-initiated click — on touch devices only, try fullscreen while
+           we still have the gesture (later `await` paths lose it). Desktop
+           skips — the game runs in the normal window with a wider frame. */
+        if (shouldOfferMobileFullscreen()) {
+          requestPageFullscreen();
+        }
         showGameShell(stored);
         try {
           await loadPhaserWhenLandscape(stored);
@@ -587,9 +601,12 @@ async function startApp() {
         startBtn.textContent = "Starting...";
       }
 
-      /* Still inside the click gesture — fullscreen request would be rejected
-         after the network round-trip below, so fire it now. */
-      requestPageFullscreen();
+      /* Touch devices only: request fullscreen inside the click gesture
+         (after `await` the browser rejects). Desktop never enters
+         fullscreen from here. */
+      if (shouldOfferMobileFullscreen()) {
+        requestPageFullscreen();
+      }
 
       let user;
       try {

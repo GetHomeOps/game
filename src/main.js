@@ -59,7 +59,7 @@ export function startGame(player) {
     width: 960,
     height: 540,
     /* Match interior art / HUD cream so sub-pixel seam gaps at zone joins never flash sky blue. */
-    backgroundColor: "#fff8ee",
+    backgroundColor: "#fff1d6",
     pixelArt: false,
     render: {
       roundPixels: true,
@@ -100,6 +100,54 @@ export function startGame(player) {
   if (player) {
     game.registry.set("player", player);
   }
+  attachViewportRefitListeners(game);
+}
+
+/**
+ * iOS Safari does NOT fire `window.resize` when the URL bar collapses or
+ * expands in landscape (only the *visual* viewport changes; the layout
+ * viewport stays put). Phaser's Scale.FIT handler is wired to `resize`, so
+ * the canvas keeps the dimensions from boot — which on iPhone landscape is
+ * the smaller viewport with the URL bar visible. Once the bar collapses, the
+ * `#game-container` (`height: 100dvh`) grows but the canvas does not, and
+ * `CENTER_BOTH` leaves cream bands above/below.
+ *
+ * Listen for `visualViewport` resize + `orientationchange` and call
+ * `game.scale.refresh()` so the canvas re-fits the currently visible area.
+ */
+function attachViewportRefitListeners(game) {
+  if (!game) return;
+
+  let scheduled = false;
+  const refit = () => {
+    if (scheduled) return;
+    scheduled = true;
+    /* Wait one frame so the browser has finished updating viewport metrics
+       before we read them — calling refresh() inside the resize event itself
+       reads stale dimensions on iOS Safari. */
+    requestAnimationFrame(() => {
+      scheduled = false;
+      try {
+        game.scale?.refresh?.();
+      } catch {
+        /* game already destroyed — listeners removed below */
+      }
+    });
+  };
+
+  const win = /** @type {any} */ (globalThis);
+  const vv = win.visualViewport;
+  vv?.addEventListener?.("resize", refit);
+  win.addEventListener("orientationchange", refit);
+  /* `pageshow` fires after iOS Safari restores from bfcache (e.g. after
+     coming back from another tab) — viewport dims may differ from boot. */
+  win.addEventListener("pageshow", refit);
+
+  game.events?.once?.(Phaser.Core.Events.DESTROY, () => {
+    vv?.removeEventListener?.("resize", refit);
+    win.removeEventListener("orientationchange", refit);
+    win.removeEventListener("pageshow", refit);
+  });
 }
 
 /** Shut down Phaser cleanly (canvas removed from #game-container) without reloading the page. */

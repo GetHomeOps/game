@@ -8,9 +8,9 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Opsy Wopsy</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./style.css?v=15" />
+  <link rel="stylesheet" href="./style.css?v=17" />
   <!-- Match cream loading screen so the URL bar / status bar tint blends in. -->
-  <meta name="theme-color" content="#fff8ee" />
+  <meta name="theme-color" content="#fff1d6" />
   <!-- iOS PWA: when added to home screen the URL bar is gone (true fullscreen on iPhone). -->
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Opsy Wopsy" />
@@ -152,7 +152,7 @@
   </div>
 
   <!-- `?v=` bumps cache when bootstrap changes (avoids stale JS referencing removed symbols). -->
-  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=38"></script>
+  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=40"></script>
   <script>
     document.getElementById("opsy-bootstrap")?.addEventListener("error", function () {
       var el = document.getElementById("player-form-error");

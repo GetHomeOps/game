@@ -3,14 +3,48 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!--
+    `viewport-fit=cover` is required so iOS exposes non-zero
+    `env(safe-area-inset-*)` values inside the PWA. Without it, the iPhone
+    home-screen install reports every safe-area inset as 0, which made the
+    PWA-specific CSS degenerate back into plain `100dvh` and let Phaser size
+    the canvas past the visible bottom — the painted floor disappeared and
+    the dog appeared to hover. Regular Safari / Chrome on iPhone are
+    unaffected (the URL bar already inset the layout viewport).
+  -->
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
+  <!--
+    Tag the document as a home-screen PWA *before* the stylesheet loads so
+    the PWA-specific layout rules (position:fixed, safe-area padding) win
+    on the first paint instead of flashing the regular-browser layout.
+    Detection here matches `display-mode: standalone | fullscreen` and the
+    legacy iOS Safari `navigator.standalone` flag for older iPhones.
+  -->
+  <script>
+    (function () {
+      try {
+        var mq = window.matchMedia;
+        var pwa =
+          (mq && (mq("(display-mode: standalone)").matches ||
+            mq("(display-mode: fullscreen)").matches ||
+            mq("(display-mode: minimal-ui)").matches)) ||
+          (typeof navigator !== "undefined" && navigator.standalone === true);
+        if (pwa) {
+          document.documentElement.classList.add("opsy-pwa");
+        }
+      } catch (_) {
+        /* matchMedia missing — leave the class off, regular CSS still applies. */
+      }
+    })();
+  </script>
   <title>Opsy Wopsy</title>
   <!-- Same file as HUD dog (`HUD_DOG_FILE` in BootScene); v= ASSET_CACHE_VERSION -->
   <link rel="icon" href="./src/assets/ui/opsy_head_hud.png?v=3" type="image/png" />
   <link rel="apple-touch-icon" href="./src/assets/ui/opsy_head_hud.png?v=3" />
-  <link rel="stylesheet" href="./style.css?v=19" />
+  <link rel="stylesheet" href="./style.css?v=20" />
   <!-- Match cream loading screen so the URL bar / status bar tint blends in. -->
   <meta name="theme-color" content="#fff1d6" />
   <!-- iOS PWA: when added to home screen the URL bar is gone (true fullscreen on iPhone). -->

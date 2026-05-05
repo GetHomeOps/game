@@ -1,0 +1,11 @@
+{
+  "name": "opsy-wopsy-game",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm ci --prefix server",
+    "start": "node server/index.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

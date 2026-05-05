@@ -27,7 +27,7 @@ async function stopPhaserAndShell() {
   clearPendingLandscapeListener();
   setGameLoadingVisible(false);
   try {
-    const mod = await import("./main.js?v=23");
+    const mod = await import("./main.js?v=24");
     if (typeof mod.destroyOpsyPhaserGame === "function") {
       mod.destroyOpsyPhaserGame();
     }
@@ -287,6 +287,43 @@ function ensureGameReadyListener() {
 }
 
 /**
+ * iPhone Safari (and therefore iOS Chrome / Firefox, which all use WebKit
+ * under Apple's rules) does NOT implement Fullscreen API on regular DOM
+ * elements — only on `<video>`. Detect that up front so we can show a
+ * helpful tooltip instead of silently doing nothing when the user taps the
+ * fullscreen button.
+ *
+ * Already-installed PWA (`display-mode: standalone`) is effectively
+ * fullscreen on iPhone; same for tabs that are already in fullscreen.
+ */
+function fullscreenApiSupported() {
+  const el = /** @type {any} */ (document.documentElement);
+  return Boolean(el.requestFullscreen || el.webkitRequestFullscreen);
+}
+
+function isStandalonePwa() {
+  try {
+    if (globalThis.matchMedia?.("(display-mode: standalone)").matches) {
+      return true;
+    }
+  } catch {
+    /* matchMedia unsupported */
+  }
+  return Boolean(/** @type {any} */ (globalThis.navigator)?.standalone);
+}
+
+function isIosLikeDevice() {
+  const ua = String(globalThis.navigator?.userAgent || "");
+  if (/iPad|iPhone|iPod/.test(ua)) return true;
+  /* iPadOS 13+ reports as MacIntel + touch points. */
+  return (
+    ua.includes("Mac") &&
+    typeof globalThis.navigator?.maxTouchPoints === "number" &&
+    globalThis.navigator.maxTouchPoints > 1
+  );
+}
+
+/**
  * Best-effort fullscreen — modern Chromium / Firefox / Safari iPad all honour
  * the request; iPhone Safari ignores fullscreen on non-video elements (PWA
  * "Add to Home Screen" is the workaround there). Must be called from a user
@@ -336,11 +373,64 @@ function syncFullscreenButton() {
   btn.title = isFullscreen() ? "Exit fullscreen" : "Enter fullscreen";
 }
 
+/**
+ * iPhone fallback when there is no Fullscreen API: show a small tooltip
+ * pointing the user at "Add to Home Screen" (the PWA path that Apple does
+ * allow to run fullscreen). Tooltip auto-dismisses on next tap anywhere or
+ * after a few seconds — there is nothing for the button to actually toggle.
+ */
+function showIosFullscreenHint(anchorBtn) {
+  const existing = document.getElementById("ios-fullscreen-hint");
+  if (existing) {
+    existing.remove();
+    return;
+  }
+  const tip = document.createElement("div");
+  tip.id = "ios-fullscreen-hint";
+  tip.className = "ios-fullscreen-hint";
+  tip.setAttribute("role", "tooltip");
+  tip.textContent =
+    "iPhone blocks in-page fullscreen. For true fullscreen: tap the Share icon in Safari → Add to Home Screen, then open Opsy Wopsy from the home screen.";
+  document.body.appendChild(tip);
+  const dismiss = () => {
+    tip.remove();
+    document.removeEventListener("pointerdown", onDocPointer, true);
+    if (timer) globalThis.clearTimeout(timer);
+  };
+  function onDocPointer(e) {
+    if (e.target === anchorBtn || tip.contains(/** @type {Node} */ (e.target))) {
+      return;
+    }
+    dismiss();
+  }
+  /* Defer so the click that opened the tooltip doesn't immediately close it. */
+  setTimeout(() => {
+    document.addEventListener("pointerdown", onDocPointer, true);
+  }, 0);
+  const timer = globalThis.setTimeout(dismiss, 7000);
+}
+
 function bindFullscreenControls() {
   const btn = document.getElementById("fullscreen-toggle-btn");
-  if (btn && btn.dataset.opsyBound !== "1") {
+  if (!btn) return;
+  /*
+   * Hide the button entirely when fullscreen would be a no-op:
+   *   - already running as an installed PWA (effectively fullscreen)
+   *   - iPhone Safari without the Fullscreen API and not yet a PWA: the
+   *     button used to silently fail; surface a tooltip pointing at the
+   *     Share → Add to Home Screen workaround instead.
+   */
+  if (isStandalonePwa()) {
+    btn.hidden = true;
+    return;
+  }
+  if (btn.dataset.opsyBound !== "1") {
     btn.dataset.opsyBound = "1";
     btn.addEventListener("click", () => {
+      if (!fullscreenApiSupported() && isIosLikeDevice()) {
+        showIosFullscreenHint(btn);
+        return;
+      }
       toggleFullscreen();
     });
   }
@@ -353,7 +443,7 @@ async function loadPhaser(player) {
   ensureGameReadyListener();
   setGameLoadingVisible(true);
   try {
-    const { startGame } = await import("./main.js?v=23");
+    const { startGame } = await import("./main.js?v=24");
     startGame(player);
   } catch (err) {
     setGameLoadingVisible(false);

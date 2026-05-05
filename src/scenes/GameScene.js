@@ -447,21 +447,42 @@ export default class GameScene extends Phaser.Scene {
       0
     );
     if (playerKey === "spr_player") {
-      /* Square PNGs from `opsy_running_new` (now 512×512 after the iOS-memory
-         optimization in scripts/optimize_assets_for_mobile.sh — was 1254×1254).
-         Base scale matches the old ~230px-wide strip at 0.4, with a modest bump
-         so the dog reads larger on screen. Origin at bottom-centre keeps feet
-         on the floor. Body size / offset are scaled from the prior 230×174
-         sheet. The formula divides by `srcPx`, so the on-screen size is
-         independent of the source resolution. */
-      const srcPx = 512;
+      /*
+       * The opsy_running_new PNGs have changed source resolution over time
+       * (1254→512 after the iOS-memory pass), and stale browser caches can
+       * leave a phone holding the old size while the JS expects the new one.
+       * Reading the live texture width keeps the on-screen dog the same
+       * physical size regardless of which PNG variant the browser ended up
+       * with, so the proportions match the background art on every device.
+       *
+       * Target on-screen width: oldW (230) × 0.4 × 1.3 ≈ 119.6 px in the
+       * 960×540 Phaser logical canvas. The arcade body is sized as a
+       * fraction of that on-screen width using the original 230×174 sheet
+       * proportions (body 99×75 with 65,99 offset).
+       */
       const oldW = 230;
-      const r = srcPx / oldW;
+      const oldH = 174;
+      const oldBodyW = 99;
+      const oldBodyH = 75;
+      const oldBodyOffsetX = 65;
+      const oldBodyOffsetY = 99;
       const displayBoost = 1.3;
+      const targetWidthPx = oldW * 0.4 * displayBoost;
+      const texW = this.player.width || oldW;
+      const texH = this.player.height || oldH;
+      const scale = targetWidthPx / texW;
       this.player.setOrigin(0.5, 1);
-      this.player.setScale(0.4 * (oldW / srcPx) * displayBoost);
-      this.player.body.setSize(Math.round(99 * r), Math.round(75 * r));
-      this.player.body.setOffset(Math.round(65 * r), Math.round(99 * r));
+      this.player.setScale(scale);
+      const rX = texW / oldW;
+      const rY = texH / oldH;
+      this.player.body.setSize(
+        Math.round(oldBodyW * rX),
+        Math.round(oldBodyH * rY)
+      );
+      this.player.body.setOffset(
+        Math.round(oldBodyOffsetX * rX),
+        Math.round(oldBodyOffsetY * rY)
+      );
       this.player.refreshBody();
     } else {
       /* Procedural tex_player is 48×72 */

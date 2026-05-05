@@ -509,6 +509,28 @@ body {
 }
 
 /*
+ * iPhone fullscreen tooltip. The Fullscreen API isn't available on iOS
+ * Safari for non-video elements, so the button tap shows this short hint
+ * pointing at Add-to-Home-Screen instead of failing silently.
+ */
+.ios-fullscreen-hint {
+  position: fixed;
+  top: 48px;
+  right: 8px;
+  z-index: 50;
+  max-width: min(320px, 84vw);
+  padding: 0.7rem 0.85rem;
+  border-radius: 10px;
+  background: rgba(28, 22, 18, 0.94);
+  color: var(--paper);
+  font-size: 0.82rem;
+  line-height: 1.35;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/*
  * Layering reference: gameplay is painted on one Phaser canvas. The warm wash is
  * drawn in GameScene between background art and sprites; this class is unused in
  * DOM but documents the same treatment as the in-canvas overlay.

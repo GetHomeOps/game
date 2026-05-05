@@ -1,9 +1,14 @@
-import BootScene from "./scenes/BootScene.js";
-import StartScene from "./scenes/StartScene.js";
-/* `?v=` busts the browser HTTP cache when GameScene gameplay changes (the
-   parent main.js already does the same so users never end up on a stale
-   bundle that combines old scene code with new bootstrap / config). */
-import GameScene from "./scenes/GameScene.js?v=3";
+/*
+ * Cache-bust every scene module on the SAME version, so a phone never loads
+ * a stale Boot/Start scene against a fresh GameScene (or vice-versa). The
+ * previous setup only versioned GameScene, which let iOS Chrome reuse a
+ * cached BootScene that pointed at oversized (and then re-encoded) PNGs and
+ * made the dog render at the wrong proportions. Bump SCENE_CACHE_VERSION
+ * any time you touch BootScene, StartScene, or GameScene.
+ */
+import BootScene from "./scenes/BootScene.js?v=4";
+import StartScene from "./scenes/StartScene.js?v=4";
+import GameScene from "./scenes/GameScene.js?v=4";
 
 const Phaser = globalThis.Phaser;
 if (!Phaser) {

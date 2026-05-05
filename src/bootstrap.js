@@ -24,6 +24,7 @@ function teardownDomGameListeners() {
 }
 
 async function stopPhaserAndShell() {
+  clearPendingLandscapeListener();
   setGameLoadingVisible(false);
   try {
     const mod = await import("./main.js?v=22");
@@ -154,6 +155,57 @@ function showPreGame() {
   if (pre) pre.hidden = false;
   if (appSection) appSection.hidden = true;
   document.body.classList.remove("opsy-game-shell");
+}
+
+/**
+ * Coarse-pointer phones in portrait (< ~900px) are blocked from playing by the
+ * rotate-to-landscape overlay; if we boot Phaser into a `display:none` parent
+ * the canvas inits at 0×0 and the loading overlay can stay stuck forever after
+ * the user rotates. Defer Phaser until we're actually in landscape.
+ */
+function isMobilePortrait() {
+  try {
+    return (
+      globalThis.matchMedia?.("(orientation: portrait)").matches === true &&
+      globalThis.matchMedia?.("(hover: none) and (pointer: coarse)").matches ===
+        true &&
+      (globalThis.innerWidth || 0) <= 900
+    );
+  } catch {
+    return false;
+  }
+}
+
+/** @type {(() => void) | undefined} */
+let pendingLandscapeListener;
+
+function clearPendingLandscapeListener() {
+  if (!pendingLandscapeListener) return;
+  globalThis.removeEventListener("resize", pendingLandscapeListener);
+  globalThis.removeEventListener("orientationchange", pendingLandscapeListener);
+  pendingLandscapeListener = undefined;
+}
+
+/**
+ * Loads Phaser now if the device is ready (desktop, tablet landscape, or any
+ * non-coarse pointer); otherwise waits for the next orientation/resize event
+ * that escapes mobile portrait, then loads. Returns a promise that resolves /
+ * rejects with the underlying loadPhaser call.
+ */
+function loadPhaserWhenLandscape(player) {
+  if (!isMobilePortrait()) {
+    return loadPhaser(player);
+  }
+  clearPendingLandscapeListener();
+  return new Promise((resolve, reject) => {
+    pendingLandscapeListener = () => {
+      if (isMobilePortrait()) return;
+      clearPendingLandscapeListener();
+      loadPhaser(player).then(resolve, reject);
+    };
+    globalThis.addEventListener("resize", pendingLandscapeListener);
+    globalThis.addEventListener("orientationchange", pendingLandscapeListener);
+  });
 }
 
 /** After this long with no game-ready event, surface a reload escape hatch. */
@@ -349,7 +401,7 @@ async function startApp() {
         requestPageFullscreen();
         showGameShell(stored);
         try {
-          await loadPhaser(stored);
+          await loadPhaserWhenLandscape(stored);
         } catch (err) {
           showPreGame();
           if (errEl) {
@@ -494,7 +546,7 @@ async function startApp() {
 
       showGameShell(profile);
       try {
-        await loadPhaser(profile);
+        await loadPhaserWhenLandscape(profile);
       } catch (err) {
         showPreGame();
         errEl.textContent = formErrorMessage(err);
@@ -536,27 +588,19 @@ async function startApp() {
     });
   }
 
-  let stored = getStoredPlayer();
-
-  if (!stored) {
-    bindJoinFlow();
-  } else {
-    showGameShell(stored);
-  }
-
-  if (stored) {
-    try {
-      await loadPhaser(stored);
-    } catch (err) {
-      showPreGame();
-      if (errEl) {
-        errEl.textContent = formErrorMessage(err);
-        errEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-      }
-      bindJoinFlow();
-      prefillPlayerForm();
-    }
-  }
+  /*
+   * Always land on the join form first — even when a stored player exists.
+   *
+   * Auto-jumping straight into the game shell on resume meant phones in
+   * portrait got the rotate-to-landscape overlay before they ever saw the
+   * resume banner, so anyone who wanted to switch profiles was trapped under
+   * "Rotate your phone" with no way to reach the form. Showing pre-game first
+   * keeps login + the one-tap resume banner usable in portrait, and only the
+   * actual gameplay requires landscape.
+   */
+  bindJoinFlow();
+  prefillPlayerForm();
+  showPreGame();
 }
 
 startApp().catch((err) => {

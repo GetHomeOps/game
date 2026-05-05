@@ -27,7 +27,7 @@ async function stopPhaserAndShell() {
   clearPendingLandscapeListener();
   setGameLoadingVisible(false);
   try {
-    const mod = await import("./main.js?v=27");
+    const mod = await import("./main.js?v=28");
     if (typeof mod.destroyOpsyPhaserGame === "function") {
       mod.destroyOpsyPhaserGame();
     }
@@ -463,7 +463,7 @@ async function loadPhaser(player) {
   ensureGameReadyListener();
   setGameLoadingVisible(true);
   try {
-    const { startGame } = await import("./main.js?v=27");
+    const { startGame } = await import("./main.js?v=28");
     startGame(player);
   } catch (err) {
     setGameLoadingVisible(false);

@@ -16,14 +16,21 @@ if (!Phaser) {
  *  ONLY thing painted into the world — every zone is sized to one
  *  full background image, drawn at uniform scale so the art appears
  *  in full with no cropping and no horizontal squash. Aside from small
- *  floating wood platforms (optional gameplay), no procedural wall/ground/sky
- *  is layered on the art. The main walkable surface is whatever the
- *  background depicts; the floor collider is invisible.
+ *  floating wood platforms (optional gameplay), no procedural walls/sky layer
+ *  on top of backgrounds. Indoor rooms get a tinted band under the aligned
+ *  floor line for a darker inlaid-floor read; outdoors use PNG only.
+ *  The walkable surface is whatever the background depicts; the floor
+ *  collider is invisible.
  * ═══════════════════════════════════════════════════════════════ */
 
 const FLOOR_TOP = 460; /* y-coordinate of the walkable surface */
 const FLOOR_H = 80;
 const WORLD_HEIGHT = 540;
+
+/* Darker inlaid-floor read for indoor rooms only (below FLOOR_TOP, above bg art). */
+const INDOOR_FLOOR_SHADE_DEPTH = -18;
+const INDOOR_FLOOR_SHADE_RGB = 0x2f1e14;
+const INDOOR_FLOOR_SHADE_ALPHA = 0.34;
 
 /* Source backgrounds are 1672×941. Uniform-scaled to fill WORLD_HEIGHT,
    each image is exactly this many world pixels wide. ZONE_W matches that
@@ -432,6 +439,7 @@ export default class GameScene extends Phaser.Scene {
 
     /* Build everything */
     this.drawZoneBackgrounds();
+    this.addIndoorFloorShade();
     this.addBackgroundOverlay();
     this.drawZoneLabels();
     this.buildFloor();
@@ -449,7 +457,7 @@ export default class GameScene extends Phaser.Scene {
     if (playerKey === "spr_player") {
       /*
        * The opsy_running_new PNGs have changed source resolution over time
-       * (1254→512 after the iOS-memory pass), and stale browser caches can
+       * (1254²→512² after the iOS-memory pass), and stale browser caches can
        * leave a phone holding the old size while the JS expects the new one.
        * Reading the live texture width keeps the on-screen dog the same
        * physical size regardless of which PNG variant the browser ended up
@@ -459,9 +467,16 @@ export default class GameScene extends Phaser.Scene {
        * 960×540 Phaser logical canvas. The arcade body is sized as a
        * fraction of that on-screen width using the original 230×174 sheet
        * proportions (body 99×75 with 65,99 offset).
+       *
+       * IMPORTANT: the source PNGs are *square* (with transparent padding
+       * around the dog), not the original 230×174 aspect ratio. Use a single
+       * uniform ratio `r = texW / oldW` for both axes — the same way the
+       * previous (working) code derived it as `r = srcPx / oldW`. Using
+       * `texH / oldH` for Y instead pushes the body's bottom to the very
+       * bottom row of the padded PNG, which makes the dog visibly float
+       * above the painted floor.
        */
       const oldW = 230;
-      const oldH = 174;
       const oldBodyW = 99;
       const oldBodyH = 75;
       const oldBodyOffsetX = 65;
@@ -469,19 +484,17 @@ export default class GameScene extends Phaser.Scene {
       const displayBoost = 1.3;
       const targetWidthPx = oldW * 0.4 * displayBoost;
       const texW = this.player.width || oldW;
-      const texH = this.player.height || oldH;
       const scale = targetWidthPx / texW;
       this.player.setOrigin(0.5, 1);
       this.player.setScale(scale);
-      const rX = texW / oldW;
-      const rY = texH / oldH;
+      const r = texW / oldW;
       this.player.body.setSize(
-        Math.round(oldBodyW * rX),
-        Math.round(oldBodyH * rY)
+        Math.round(oldBodyW * r),
+        Math.round(oldBodyH * r)
       );
       this.player.body.setOffset(
-        Math.round(oldBodyOffsetX * rX),
-        Math.round(oldBodyOffsetY * rY)
+        Math.round(oldBodyOffsetX * r),
+        Math.round(oldBodyOffsetY * r)
       );
       this.player.refreshBody();
     } else {
@@ -587,8 +600,8 @@ export default class GameScene extends Phaser.Scene {
 
   drawZoneBackgrounds() {
     /*
-     * Each room PNG is the only thing painted into the world. No wall, ground,
-     * or sky overlays are drawn so the original art shows in full.
+     * Each room PNG is the base paint for the zone. Indoor floor planks are
+     * darkened afterward (see addIndoorFloorShade); no wall/sky overlays.
      *
      * Image is anchored at the zone's left edge and scaled uniformly so its
      * height fills the viewport — its displayed width then exactly matches
@@ -604,6 +617,26 @@ export default class GameScene extends Phaser.Scene {
       /* +1 px wide: avoids a one-pixel gap when ZONE_W is rounded vs scaled texture width and filtering samples the canvas clear color. */
       im.setDisplaySize(im.displayWidth + 1, LEVEL.worldHeight);
       im.setDepth(-20);
+    }
+  }
+
+  /** Warm dark-walnut wash on the painted floor band for indoor zones only. */
+  addIndoorFloorShade() {
+    const stripH = WORLD_HEIGHT - FLOOR_TOP;
+    if (stripH <= 0 || INDOOR_FLOOR_SHADE_ALPHA <= 0) return;
+    const cy = FLOOR_TOP + stripH / 2;
+    for (const z of LEVEL.zones) {
+      if (z.kind !== "indoor") continue;
+      this.add
+        .rectangle(
+          z.x + z.w / 2,
+          cy,
+          z.w + 1,
+          stripH,
+          INDOOR_FLOOR_SHADE_RGB,
+          INDOOR_FLOOR_SHADE_ALPHA
+        )
+        .setDepth(INDOOR_FLOOR_SHADE_DEPTH);
     }
   }
 

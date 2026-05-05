@@ -786,6 +786,39 @@ kbd {
 }
 
 /*
+ * iPhone PWA (manifest `display: fullscreen` / `standalone`) lets the body
+ * extend *under* the home indicator at the bottom and the dynamic island /
+ * notch on the side in landscape. `100dvh` and `visualViewport.height` both
+ * report that full-screen height, so Phaser's `CENTER_BOTH` centers the
+ * canvas inside the full-screen rectangle and the play area visually sits
+ * below the actually-visible center: the user sees cream space at the top
+ * and the dog's floor running off behind the home indicator.
+ *
+ * This block subtracts `env(safe-area-inset-*)` so the canvas centers
+ * inside the visible area. Scoped to `display-mode: fullscreen / standalone`
+ * so non-PWA mobile (iPhone Safari with its own chrome) keeps the existing
+ * 100dvh / `--opsy-vh` layout that was already correct there.
+ */
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) and (display-mode: fullscreen),
+       (orientation: landscape) and (hover: none) and (pointer: coarse) and (display-mode: standalone),
+       (orientation: landscape) and (hover: none) and (pointer: coarse) and (display-mode: minimal-ui) {
+  body.opsy-game-shell #app {
+    height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    height: min(
+      calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)),
+      calc(var(--opsy-vh, 1dvh) * 100 - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
+    );
+    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    margin-top: env(safe-area-inset-top, 0px);
+    margin-left: env(safe-area-inset-left, 0px);
+  }
+  body.opsy-game-shell .game-stage {
+    height: 100%;
+    width: 100%;
+  }
+}
+
+/*
  * Narrow leaderboards: the "Played" column carries long timestamps that push
  * the table wider than the viewport on phones. Hide it below ~640px so the
  * remaining columns fit and the panel doesn't need a horizontal scroll bar.

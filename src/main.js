@@ -6,9 +6,9 @@
  * made the dog render at the wrong proportions. Bump SCENE_CACHE_VERSION
  * any time you touch BootScene, StartScene, or GameScene.
  */
-import BootScene from "./scenes/BootScene.js?v=4";
-import StartScene from "./scenes/StartScene.js?v=4";
-import GameScene from "./scenes/GameScene.js?v=4";
+import BootScene from "./scenes/BootScene.js?v=5";
+import StartScene from "./scenes/StartScene.js?v=5";
+import GameScene from "./scenes/GameScene.js?v=5";
 
 const Phaser = globalThis.Phaser;
 if (!Phaser) {

@@ -10,7 +10,7 @@
   <!-- Same file as HUD dog (`HUD_DOG_FILE` in BootScene); v= ASSET_CACHE_VERSION -->
   <link rel="icon" href="./src/assets/ui/opsy_head_hud.png?v=3" type="image/png" />
   <link rel="apple-touch-icon" href="./src/assets/ui/opsy_head_hud.png?v=3" />
-  <link rel="stylesheet" href="./style.css?v=18" />
+  <link rel="stylesheet" href="./style.css?v=19" />
   <!-- Match cream loading screen so the URL bar / status bar tint blends in. -->
   <meta name="theme-color" content="#fff1d6" />
   <!-- iOS PWA: when added to home screen the URL bar is gone (true fullscreen on iPhone). -->
@@ -154,7 +154,7 @@
   </div>
 
   <!-- `?v=` bumps cache when bootstrap changes (avoids stale JS referencing removed symbols). -->
-  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=41"></script>
+  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=42"></script>
   <script>
     document.getElementById("opsy-bootstrap")?.addEventListener("error", function () {
       var el = document.getElementById("player-form-error");

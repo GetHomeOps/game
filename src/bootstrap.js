@@ -107,7 +107,7 @@ function removeStoredPlayer() {
 function prefillPlayerForm() {
   const form = document.getElementById("player-form");
   const p = getStoredPlayer();
-  syncResumeBanner(p);
+  syncSignOutLink(p);
   if (!form || !p) return;
   const nameInput = form.querySelector('[name="name"]');
   const userInput = form.querySelector('[name="username"]');
@@ -117,23 +117,11 @@ function prefillPlayerForm() {
   if (emailInput instanceof HTMLInputElement) emailInput.value = p.email || "";
 }
 
-/**
- * Shows or hides the "we still know who you are" banner above the form. When a
- * stored player exists, the user can resume in one click instead of retyping
- * (and accidentally clicking "Change player" never silently wipes them).
- */
-function syncResumeBanner(stored) {
-  const banner = document.getElementById("resume-banner");
-  const text = document.getElementById("resume-banner-text");
-  const keepBtn = document.getElementById("resume-keep-btn");
-  if (!banner || !text || !keepBtn) return;
-  if (!stored) {
-    banner.hidden = true;
-    return;
-  }
-  const label = stored.name?.trim() || stored.username?.trim() || "your saved profile";
-  text.textContent = `Welcome back, ${label}. Pick up where you left off?`;
-  banner.hidden = false;
+/** Shows the explicit sign-out control only when a stored profile exists (prefilled form). */
+function syncSignOutLink(stored) {
+  const btn = document.getElementById("resume-clear-btn");
+  if (!btn) return;
+  btn.hidden = !stored;
 }
 
 function showGameShell(_player) {
@@ -499,9 +487,8 @@ async function startApp() {
   /*
    * "Change player" used to wipe the stored profile immediately, which made
    * a single accidental click (the HUD button sits next to "Restart") feel
-   * like a hostile logout. We now keep the saved player, just navigate to the
-   * pre-game form prefilled — the user can either resume with one click via
-   * the banner, edit fields and submit a new identity, or explicitly sign out.
+   * like a hostile logout. We now keep the saved player and show the join
+   * form prefilled — the user can submit to continue or sign out explicitly.
    */
   document.getElementById("change-player-btn")?.addEventListener("click", () => {
     void (async () => {
@@ -512,37 +499,6 @@ async function startApp() {
     })();
   });
 
-  /* Resume banner: jump straight back into the game with the saved profile. */
-  document
-    .getElementById("resume-keep-btn")
-    ?.addEventListener("click", () => {
-      void (async () => {
-        const stored = getStoredPlayer();
-        if (!stored) {
-          syncResumeBanner(null);
-          return;
-        }
-        /* User-initiated click — on touch devices only, try fullscreen while
-           we still have the gesture (later `await` paths lose it). Desktop
-           skips — the game runs in the normal window with a wider frame. */
-        if (shouldOfferMobileFullscreen()) {
-          requestPageFullscreen();
-        }
-        showGameShell(stored);
-        try {
-          await loadPhaserWhenLandscape(stored);
-        } catch (err) {
-          showPreGame();
-          if (errEl) {
-            errEl.textContent = formErrorMessage(err);
-            errEl.scrollIntoView({ block: "nearest", behavior: "smooth" });
-          }
-          prefillPlayerForm();
-        }
-      })();
-    });
-
-  /* Explicit sign-out lives behind a confirm so it can never happen by accident. */
   document
     .getElementById("resume-clear-btn")
     ?.addEventListener("click", () => {
@@ -563,7 +519,7 @@ async function startApp() {
         if (userInput instanceof HTMLInputElement) userInput.value = "";
         if (emailInput instanceof HTMLInputElement) emailInput.value = "";
       }
-      syncResumeBanner(null);
+      syncSignOutLink(null);
     });
 
   function bindJoinFlow() {
@@ -663,7 +619,7 @@ async function startApp() {
 
       try {
         setStoredPlayer(profile);
-        syncResumeBanner(null);
+        syncSignOutLink(profile);
       } catch (persistErr) {
         showPreGame();
         errEl.textContent = formErrorMessage(persistErr);
@@ -725,10 +681,9 @@ async function startApp() {
    *
    * Auto-jumping straight into the game shell on resume meant phones in
    * portrait got the rotate-to-landscape overlay before they ever saw the
-   * resume banner, so anyone who wanted to switch profiles was trapped under
-   * "Rotate your phone" with no way to reach the form. Showing pre-game first
-   * keeps login + the one-tap resume banner usable in portrait, and only the
-   * actual gameplay requires landscape.
+   * join form, so anyone who wanted to switch profiles was trapped under
+   * "Rotate your phone" with no way to reach sign-out. Showing pre-game first
+   * keeps portrait login usable; only the actual gameplay requires landscape.
    */
   bindJoinFlow();
   prefillPlayerForm();

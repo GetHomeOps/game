@@ -72,6 +72,15 @@ body {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
+  background-color: var(--paper);
+  background-image: linear-gradient(
+      rgba(255, 241, 214, 0.42),
+      rgba(255, 241, 214, 0.42)
+    ),
+    url("./src/assets/opsy_start/ChatGPT%20Image%20May%205%2C%202026%2C%2001_29_13%20PM.png");
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
 }
 
 /*
@@ -86,11 +95,22 @@ body {
 
 .pre-game-card {
   width: min(420px, 100%);
-  background: linear-gradient(165deg, rgba(244, 232, 212, 0.98), rgba(201, 169, 110, 0.92));
+  background: linear-gradient(165deg, rgba(244, 232, 212, 0.88), rgba(201, 169, 110, 0.78));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   border-radius: 14px;
   padding: 1.75rem 1.5rem 1.5rem;
   box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35),
     inset 0 0 0 3px rgba(92, 61, 46, 0.35);
+}
+
+.pre-game-mascot {
+  display: block;
+  width: clamp(72px, 22vw, 96px);
+  height: auto;
+  margin: -0.15rem auto 0.65rem;
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
 }
 
 .pre-game-brand {
@@ -193,44 +213,25 @@ body {
   background: rgba(255, 224, 102, 0.55);
 }
 
-.resume-banner {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.55rem;
-  margin: 0 0 0.75rem;
-  padding: 0.7rem 0.85rem;
-  border-radius: 10px;
-  background: rgba(255, 248, 238, 0.55);
-  border: 1px solid rgba(92, 61, 46, 0.18);
-}
-
-.resume-banner[hidden] {
-  display: none !important;
-}
-
-.resume-banner-text {
-  flex: 1 1 100%;
-  font-size: 0.92rem;
-  font-weight: 600;
-  color: var(--wood);
-}
-
-.resume-clear-btn {
+.pre-game-sign-out-link {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: 0.65rem auto 0;
+  padding: 0.25rem 0.4rem;
   background: none;
   border: none;
-  padding: 0.25rem 0.4rem;
-  margin: 0;
   font: inherit;
   font-size: 0.78rem;
   font-weight: 700;
   color: rgba(62, 39, 35, 0.7);
   text-decoration: underline;
   cursor: pointer;
+  text-align: center;
 }
 
-.resume-clear-btn:hover,
-.resume-clear-btn:focus-visible {
+.pre-game-sign-out-link:hover,
+.pre-game-sign-out-link:focus-visible {
   color: var(--danger);
 }
 

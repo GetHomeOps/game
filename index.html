@@ -44,7 +44,7 @@
   <!-- Same file as HUD dog (`HUD_DOG_FILE` in BootScene); v= ASSET_CACHE_VERSION -->
   <link rel="icon" href="./src/assets/ui/opsy_head_hud.png?v=3" type="image/png" />
   <link rel="apple-touch-icon" href="./src/assets/ui/opsy_head_hud.png?v=3" />
-  <link rel="stylesheet" href="./style.css?v=20" />
+  <link rel="stylesheet" href="./style.css?v=24" />
   <!-- Match cream loading screen so the URL bar / status bar tint blends in. -->
   <meta name="theme-color" content="#fff1d6" />
   <!-- iOS PWA: when added to home screen the URL bar is gone (true fullscreen on iPhone). -->
@@ -87,13 +87,13 @@
 
   <section id="pre-game" class="pre-game" aria-labelledby="pre-game-title">
     <div class="pre-game-card">
+      <img class="pre-game-mascot"
+        src="./src/assets/ui/opsy_head_hud.png?v=3"
+        width="88"
+        height="88"
+        alt="" />
       <h1 id="pre-game-title" class="pre-game-brand">Opsy Wopsy</h1>
       <p class="pre-game-lede">Enter your details to play and appear on the scoreboard.</p>
-      <div id="resume-banner" class="resume-banner" hidden>
-        <span id="resume-banner-text" class="resume-banner-text"></span>
-        <button type="button" id="resume-keep-btn" class="btn-secondary">Keep playing</button>
-        <button type="button" id="resume-clear-btn" class="resume-clear-btn">Sign out and use a different profile</button>
-      </div>
       <form id="player-form" class="player-form" method="post" action="#" autocomplete="on">
         <label class="field">
           <span>Name</span>
@@ -112,6 +112,9 @@
         <p id="player-form-error" class="form-error" role="alert"></p>
         <button type="button" id="opsy-start-game" class="btn-primary">Start game</button>
       </form>
+      <button type="button" id="resume-clear-btn" class="pre-game-sign-out-link" hidden>
+        Sign out and use a different profile
+      </button>
       <a class="admin-login-link" href="./admin.html">Admin login</a>
     </div>
   </section>

@@ -3,7 +3,10 @@ if (!Phaser) {
   throw new Error("Phaser not loaded — check script order in index.html.");
 }
 
-/* Individual run cycle frames (square 1254×1254 PNGs). */
+/* Individual run cycle frames. Square PNGs in `opsy_running_new`; downsized
+   to 512×512 by scripts/optimize_assets_for_mobile.sh so the player + hazard
+   sheet fits inside iOS Safari's per-page decoded-image budget (the original
+   1254×1254 PNGs blew past it and made the loader hang at 0% on iPhone). */
 const PLAYER_RUN_FILES = [
   "ChatGPT Image May 4, 2026, 10_19_33 AM (1).png",
   "ChatGPT Image May 4, 2026, 10_19_33 AM (2).png",
@@ -37,20 +40,32 @@ const HAZARD_FILES = [
   { key: "hazard_broken_stairs", file: "ChatGPT Image May 4, 2026, 06_17_52 PM (3).png" },
 ];
 
+/*
+ * Bump on any asset re-encode (e.g. the iOS-memory resize done by
+ * scripts/optimize_assets_for_mobile.sh). Browsers + intermediate caches
+ * keyed on path+query will refetch instead of serving the stale, oversized
+ * copy that hangs iPhone decoders.
+ */
+const ASSET_CACHE_VERSION = "3";
+
+function withVersion(url) {
+  return `${url}?v=${ASSET_CACHE_VERSION}`;
+}
+
 function playerAssetHref(filename) {
-  return new URL(filename, PLAYER_ASSET_DIR).href;
+  return withVersion(new URL(filename, PLAYER_ASSET_DIR).href);
 }
 
 function hazardAssetHref(filename) {
-  return new URL(filename, HAZARD_ASSET_DIR).href;
+  return withVersion(new URL(filename, HAZARD_ASSET_DIR).href);
 }
 
 function uiAssetHref(filename) {
-  return new URL(filename, UI_ASSET_DIR).href;
+  return withVersion(new URL(filename, UI_ASSET_DIR).href);
 }
 
 function opsyEndAssetHref(filename) {
-  return new URL(filename, OPSY_END_ASSET_DIR).href;
+  return withVersion(new URL(filename, OPSY_END_ASSET_DIR).href);
 }
 
 /**
@@ -249,7 +264,7 @@ const NEW_BACKGROUND_ROOMS = [
  * All non-bitmap art is generated procedurally below.
  *
  * To swap in a real sprite asset later:
- *   1. Place the image under  assets/sprites/  or  assets/new_backgrounds/
+ *   1. Place the image under  assets/new_backgrounds/
  *   2. Load it in preload() with this.load.image / this.load.spritesheet
  *   3. Remove or skip the corresponding generateTexture block below
  */
@@ -455,6 +470,16 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    /*
+     * Cap the number of in-flight image downloads. iOS Safari / iOS Chrome
+     * (which both use WebKit) have a per-page decoded-image memory ceiling
+     * around 80–100 MB; with ~30 PNGs in flight at once peak RAM spikes
+     * above the limit and the loader silently stalls at 0%. Two parallel
+     * downloads keeps the active working set tiny while still saturating
+     * cellular / Wi-Fi.
+     */
+    this.load.maxParallelDownloads = 2;
+
     /* Mobile cellular needs ~14MB of art before play; surface real progress so the
        loading overlay never feels frozen, and so anyone watching can tell the
        request is still alive. The DOM overlay listens for these events. */
@@ -466,6 +491,18 @@ export default class BootScene extends Phaser.Scene {
     this.load.on("complete", () => {
       globalThis.dispatchEvent(
         new CustomEvent("opsy:load-progress", { detail: { progress: 1 } })
+      );
+    });
+    /* Surface silent failures: if a single asset 404s or its decode is killed
+       by an iOS memory limit, the loader can otherwise hang forever without
+       any indication. Logging gives us breadcrumbs in remote debugging. */
+    this.load.on("loaderror", (file) => {
+      const url = (file && (file.url || file.src)) || "(unknown url)";
+      console.error("[BootScene] Asset failed to load:", file?.key, url);
+      globalThis.dispatchEvent(
+        new CustomEvent("opsy:load-error", {
+          detail: { key: file?.key, url },
+        })
       );
     });
 
@@ -480,11 +517,13 @@ export default class BootScene extends Phaser.Scene {
     }
 
     for (const { key, file } of NEW_BACKGROUND_ROOMS) {
-      /* `?v=` busts the browser cache when the PNGs are re-aligned by
-         scripts/align_background_floors.py — bump when the files change. */
+      /* `?v=` busts the browser cache when the PNGs are re-aligned (by
+         scripts/align_background_floors.py) or re-encoded (by
+         scripts/optimize_assets_for_mobile.sh). The version is shared
+         across all assets via ASSET_CACHE_VERSION above. */
       this.load.image(
         key,
-        new URL(`../assets/new_backgrounds/${file}?v=2`, import.meta.url).href
+        withVersion(new URL(`../assets/new_backgrounds/${file}`, import.meta.url).href)
       );
     }
   }

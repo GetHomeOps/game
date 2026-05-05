@@ -447,11 +447,14 @@ export default class GameScene extends Phaser.Scene {
       0
     );
     if (playerKey === "spr_player") {
-      /* Square PNGs from `opsy_running_new` (1254×1254). Base scale matches the
-         old ~230px-wide strip at 0.4, with a modest bump so the dog reads larger
-         on screen. Origin at bottom-centre keeps feet on the floor. Body size
-         / offset are scaled from the prior 230×174 sheet. */
-      const srcPx = 1254;
+      /* Square PNGs from `opsy_running_new` (now 512×512 after the iOS-memory
+         optimization in scripts/optimize_assets_for_mobile.sh — was 1254×1254).
+         Base scale matches the old ~230px-wide strip at 0.4, with a modest bump
+         so the dog reads larger on screen. Origin at bottom-centre keeps feet
+         on the floor. Body size / offset are scaled from the prior 230×174
+         sheet. The formula divides by `srcPx`, so the on-screen size is
+         independent of the source resolution. */
+      const srcPx = 512;
       const oldW = 230;
       const r = srcPx / oldW;
       const displayBoost = 1.3;

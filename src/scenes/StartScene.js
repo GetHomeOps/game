@@ -61,7 +61,10 @@ export default class StartScene extends Phaser.Scene {
 
     if (this.textures.exists("spr_player")) {
       const dog = this.add.sprite(W / 2, 265, "spr_player", 0);
-      dog.setScale(((384 * 0.4) / 1254) * 1.3);
+      /* Source PNG is now 512×512 (was 1254×1254 before the iOS-memory
+         optimization in scripts/optimize_assets_for_mobile.sh). Dividing by
+         the source size keeps the rendered dog the same on screen. */
+      dog.setScale(((384 * 0.4) / 512) * 1.3);
     } else {
       const dog = this.add.sprite(W / 2, 265, "tex_player");
       dog.setScale(2.5);

@@ -18,7 +18,11 @@ This script:
       the shift is filled by extending the closest row (top row when
       padding the top, bottom row when padding the bottom).
 
-Originals are backed up to src/assets/new_backgrounds_orig/ on first run.
+If src/assets/new_backgrounds_orig/ does not exist yet, this script copies the
+current PNGs from new_backgrounds there once (so you keep a stable source for
+re-runs). The game never loads that folder — it is only for this tooling.
+Delete new_backgrounds_orig anytime to reclaim disk; the next run will
+re-seed it from whatever is in new_backgrounds.
 A debug copy with a horizontal red line drawn at the detected floor is
 written to scripts/_floor_debug/ so you can sanity-check the detection.
 

@@ -27,7 +27,7 @@ async function stopPhaserAndShell() {
   clearPendingLandscapeListener();
   setGameLoadingVisible(false);
   try {
-    const mod = await import("./main.js?v=22");
+    const mod = await import("./main.js?v=23");
     if (typeof mod.destroyOpsyPhaserGame === "function") {
       mod.destroyOpsyPhaserGame();
     }
@@ -268,6 +268,22 @@ function ensureGameReadyListener() {
       setLoadingProgress(detail.progress);
     }
   });
+  /*
+   * If Phaser's loader signals a per-asset failure (404, decode killed by
+   * iOS image-memory limit, network drop), surface it on the loading
+   * overlay text and unhide the reload escape-hatch immediately. Without
+   * this, the spinner sits at the partial progress forever.
+   */
+  globalThis.addEventListener("opsy:load-error", (e) => {
+    const detail = /** @type {CustomEvent} */ (e).detail;
+    const text = document.querySelector(".game-loading-text");
+    const reloadBtn = document.getElementById("game-loading-reload-btn");
+    if (text) {
+      const which = detail?.key ? `“${detail.key}”` : "an asset";
+      text.textContent = `Could not load ${which}. Tap reload to try again.`;
+    }
+    if (reloadBtn) reloadBtn.hidden = false;
+  });
 }
 
 /**
@@ -337,7 +353,7 @@ async function loadPhaser(player) {
   ensureGameReadyListener();
   setGameLoadingVisible(true);
   try {
-    const { startGame } = await import("./main.js?v=22");
+    const { startGame } = await import("./main.js?v=23");
     startGame(player);
   } catch (err) {
     setGameLoadingVisible(false);

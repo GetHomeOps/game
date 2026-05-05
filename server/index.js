@@ -377,9 +377,9 @@ app.post("/api/admin/reset", requireAdmin, (_req, res) => {
   res.json({ ok: true });
 });
 
-/* Avoid 404 spam: browsers request /favicon.ico even when the page declares an SVG icon. */
+/* Avoid 404 spam: browsers request /favicon.ico even when HTML declares a PNG icon. */
 app.get("/favicon.ico", (_req, res) => {
-  res.redirect(301, "/assets/favicon.svg");
+  res.redirect(301, "/src/assets/ui/opsy_head_hud.png?v=3");
 });
 
 app.use(express.static(ROOT));

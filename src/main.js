@@ -78,6 +78,14 @@ export function startGame(player) {
     scale: {
       mode: Phaser.Scale.FIT,
       autoCenter: Phaser.Scale.CENTER_BOTH,
+      /*
+       * `expandParent: false` keeps Phaser from rewriting `#game-container`'s
+       * inline width/height to its own snap-fit values — we already drive the
+       * parent size via CSS (`100dvh`/`100vw`), and letting Phaser fight us
+       * on iOS Safari + iPhone PWA caused the canvas to size past the bottom
+       * of the visible viewport (painted floor cropped, dog mid-air).
+       */
+      expandParent: false,
     },
     callbacks: {
       preBoot(game) {
@@ -95,6 +103,13 @@ export function startGame(player) {
     destroyOpsyPhaserGame(existing);
   }
 
+  /* Sync the JS-measured viewport height into `--opsy-vh` BEFORE Phaser
+     reads `#game-container` dimensions. Otherwise Phaser's first scale
+     calc on iPhone PWA can latch onto an inflated `100dvh` value and ship
+     a canvas taller than the visible area, dropping the painted floor
+     off-screen until a later refit corrects it. */
+  syncOpsyViewportHeight();
+
   const game = new Phaser.Game(config);
   globalThis.__opsyPhaserGame = game;
   if (player) {
@@ -104,16 +119,41 @@ export function startGame(player) {
 }
 
 /**
- * iOS Safari does NOT fire `window.resize` when the URL bar collapses or
- * expands in landscape (only the *visual* viewport changes; the layout
- * viewport stays put). Phaser's Scale.FIT handler is wired to `resize`, so
- * the canvas keeps the dimensions from boot — which on iPhone landscape is
- * the smaller viewport with the URL bar visible. Once the bar collapses, the
- * `#game-container` (`height: 100dvh`) grows but the canvas does not, and
- * `CENTER_BOTH` leaves cream bands above/below.
+ * Mirror `visualViewport.height` (the iOS-correct visible CSS pixel count)
+ * onto `--opsy-vh` as the per-1vh value, so CSS can use
+ * `calc(var(--opsy-vh) * 100)` in places where iOS may report 100dvh too
+ * large (iPhone PWA landscape primarily).
+ */
+function syncOpsyViewportHeight() {
+  const win = /** @type {any} */ (globalThis);
+  const h = win.visualViewport?.height || win.innerHeight || 0;
+  if (h > 0) {
+    document.documentElement.style.setProperty("--opsy-vh", `${h / 100}px`);
+  }
+}
+
+/**
+ * Re-fit the Phaser canvas whenever the visible viewport changes.
  *
- * Listen for `visualViewport` resize + `orientationchange` and call
- * `game.scale.refresh()` so the canvas re-fits the currently visible area.
+ * iOS Safari doesn't fire `window.resize` when its URL bar collapses or
+ * expands in landscape (only the *visual* viewport changes). iPhone PWA
+ * ("Add to Home Screen") in landscape also reports unstable viewport
+ * dimensions for ~1 second after first paint, so the canvas Phaser sized
+ * at boot ends up taller or shorter than the actually visible area —
+ * which in a CENTER_BOTH layout drops the painted floor below the screen
+ * (the dog appears to run mid-air) or leaves cream bands above.
+ *
+ * We watch:
+ *   - `ResizeObserver` on `#game-container` — catches every layout change
+ *     including iOS quirks where neither `resize` nor `visualViewport`
+ *     fires but the parent's CSS-resolved height is now different.
+ *   - `visualViewport.resize` — URL bar collapse, soft keyboard, dynamic
+ *     island layout shifts.
+ *   - `orientationchange` + `pageshow` — orientation flips, bfcache.
+ *
+ * We also schedule three delayed refits (50ms / 250ms / 1000ms) after
+ * boot so iPhone PWA, where layout settles asynchronously after the first
+ * frame, still ends up with the canvas snapped to the real viewport.
  */
 function attachViewportRefitListeners(game) {
   if (!game) return;
@@ -122,15 +162,13 @@ function attachViewportRefitListeners(game) {
   const refit = () => {
     if (scheduled) return;
     scheduled = true;
-    /* Wait one frame so the browser has finished updating viewport metrics
-       before we read them — calling refresh() inside the resize event itself
-       reads stale dimensions on iOS Safari. */
     requestAnimationFrame(() => {
       scheduled = false;
+      syncOpsyViewportHeight();
       try {
         game.scale?.refresh?.();
       } catch {
-        /* game already destroyed — listeners removed below */
+        /* game already destroyed — listeners cleaned up below */
       }
     });
   };
@@ -138,15 +176,33 @@ function attachViewportRefitListeners(game) {
   const win = /** @type {any} */ (globalThis);
   const vv = win.visualViewport;
   vv?.addEventListener?.("resize", refit);
+  vv?.addEventListener?.("scroll", refit);
   win.addEventListener("orientationchange", refit);
-  /* `pageshow` fires after iOS Safari restores from bfcache (e.g. after
-     coming back from another tab) — viewport dims may differ from boot. */
   win.addEventListener("pageshow", refit);
+
+  /** @type {ResizeObserver | undefined} */
+  let observer;
+  const parent = document.getElementById("game-container");
+  if (parent && typeof win.ResizeObserver === "function") {
+    observer = new win.ResizeObserver(() => refit());
+    observer.observe(parent);
+  }
+
+  /* iPhone PWA: viewport metrics aren't stable on the first frames after
+     boot (status bar + home indicator chrome animates in). Retry the fit a
+     few times so we end up locked to the real visible area even if no
+     resize event ever fires. */
+  const safetyTimers = [50, 250, 1000].map((ms) =>
+    win.setTimeout(refit, ms)
+  );
 
   game.events?.once?.(Phaser.Core.Events.DESTROY, () => {
     vv?.removeEventListener?.("resize", refit);
+    vv?.removeEventListener?.("scroll", refit);
     win.removeEventListener("orientationchange", refit);
     win.removeEventListener("pageshow", refit);
+    observer?.disconnect?.();
+    safetyTimers.forEach((t) => win.clearTimeout(t));
   });
 }
 

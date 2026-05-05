@@ -27,7 +27,7 @@ async function stopPhaserAndShell() {
   clearPendingLandscapeListener();
   setGameLoadingVisible(false);
   try {
-    const mod = await import("./main.js?v=26");
+    const mod = await import("./main.js?v=27");
     if (typeof mod.destroyOpsyPhaserGame === "function") {
       mod.destroyOpsyPhaserGame();
     }
@@ -303,7 +303,16 @@ function fullscreenApiSupported() {
 
 function isStandalonePwa() {
   try {
-    if (globalThis.matchMedia?.("(display-mode: standalone)").matches) {
+    /* `display-mode: fullscreen` is what the manifest requests; older iOS
+       and some Android shells fall back to `standalone`. Either way the
+       browser chrome is gone and the user is already at full screen, so
+       the in-page fullscreen button is redundant and should be hidden. */
+    const mq = globalThis.matchMedia;
+    if (
+      mq?.("(display-mode: standalone)").matches ||
+      mq?.("(display-mode: fullscreen)").matches ||
+      mq?.("(display-mode: minimal-ui)").matches
+    ) {
       return true;
     }
   } catch {
@@ -454,7 +463,7 @@ async function loadPhaser(player) {
   ensureGameReadyListener();
   setGameLoadingVisible(true);
   try {
-    const { startGame } = await import("./main.js?v=26");
+    const { startGame } = await import("./main.js?v=27");
     startGame(player);
   } catch (err) {
     setGameLoadingVisible(false);

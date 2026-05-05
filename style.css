@@ -726,34 +726,59 @@ kbd {
  * was taller (resume banner + 3 fields + button + admin link).
  */
 @media (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  /*
+   * `html { height: 100% }` is required so child `height: 100%` declarations
+   * resolve against the viewport rather than collapsing to 0. Without it,
+   * iOS Safari sometimes reports `#game-container` height as the full screen
+   * (taller than the visible 100dvh area), which let Phaser size the canvas
+   * past the bottom of the screen — the painted floor disappeared and the
+   * dog appeared to run mid-air. We pair this with `body.opsy-game-shell`
+   * locking overflow only while the game is showing, so the pre-game form
+   * still scrolls in landscape.
+   */
+  html:has(body.opsy-game-shell) {
+    height: 100%;
+    overflow: hidden;
+  }
   body.opsy-game-shell {
     height: 100%;
     overflow: hidden;
   }
   body.opsy-game-shell #app {
     max-width: none;
+    /*
+     * `--opsy-vh` is set by main.js from `visualViewport.height / 100`, so
+     * `calc(var(--opsy-vh) * 100)` is the JS-measured visible height. On
+     * iPhone PWA, 100dvh occasionally reports the full-screen height even
+     * when the visible area is shorter (status bar / home indicator chrome
+     * is not subtracted). `min(100dvh, …)` picks whichever is correct,
+     * falling back to plain 100dvh on platforms where the variable hasn't
+     * been set yet (the JS sets it on first paint via main.js).
+     */
     height: 100dvh;
+    height: min(100dvh, calc(var(--opsy-vh, 1dvh) * 100));
     width: 100vw;
     padding: 0;
     margin: 0;
   }
   body.opsy-game-shell .game-stage {
     height: 100dvh;
+    height: min(100dvh, calc(var(--opsy-vh, 1dvh) * 100));
     width: 100vw;
     border-radius: 0;
     box-shadow: none;
   }
+  /*
+   * NO flex centering here — Phaser's `Scale.CENTER_BOTH` already centers
+   * the canvas via auto margins. Stacking flex centering on top of that on
+   * iOS Safari / PWA produced a doubled offset where the canvas sat above
+   * the visible bottom and clipped the painted floor. Letting Phaser handle
+   * placement keeps the dog planted on the ground.
+   */
   body.opsy-game-shell #game-container {
     height: 100%;
     width: 100%;
-    /*
-     * Center the letterboxed Phaser canvas inside the full-bleed stage.
-     * Scale.FIT preserves the 16:9 aspect ratio, so on wider phone landscape
-     * frames there will be small letterbox margins — keep them centered.
-     */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    overflow: hidden;
   }
   body.opsy-game-shell .page-footer {
     display: none;

@@ -455,6 +455,20 @@ export default class BootScene extends Phaser.Scene {
   }
 
   preload() {
+    /* Mobile cellular needs ~14MB of art before play; surface real progress so the
+       loading overlay never feels frozen, and so anyone watching can tell the
+       request is still alive. The DOM overlay listens for these events. */
+    this.load.on("progress", (value) => {
+      globalThis.dispatchEvent(
+        new CustomEvent("opsy:load-progress", { detail: { progress: value } })
+      );
+    });
+    this.load.on("complete", () => {
+      globalThis.dispatchEvent(
+        new CustomEvent("opsy:load-progress", { detail: { progress: 1 } })
+      );
+    });
+
     this.load.image("spr_player", playerAssetHref(PLAYER_IDLE_FILE));
     this.load.image("tex_hud_dog", uiAssetHref(HUD_DOG_FILE));
     this.load.image("tex_opsy_end", opsyEndAssetHref(OPSY_END_FILE));

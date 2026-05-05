@@ -8,7 +8,13 @@
   <meta name="mobile-web-app-capable" content="yes" />
   <title>Opsy Wopsy</title>
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-  <link rel="stylesheet" href="./style.css?v=11" />
+  <link rel="stylesheet" href="./style.css?v=12" />
+  <!-- Match cream loading screen so the URL bar / status bar tint blends in. -->
+  <meta name="theme-color" content="#fff8ee" />
+  <!-- iOS PWA: when added to home screen the URL bar is gone (true fullscreen on iPhone). -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Opsy Wopsy" />
+  <link rel="manifest" href="./manifest.webmanifest" />
   <!-- The API and the static site are served from the same Express app in /server, so default to same-origin. Override `window.__API_BASE__` before this script if you run the page from a separate dev server (e.g. Vite). -->
   <script>
     window.__API_BASE__ =
@@ -21,9 +27,9 @@
 
 <body>
   <!--
-    Phone-portrait rotation prompt. Shown only on coarse-pointer devices in
-    portrait orientation; the game itself is designed for landscape and is
-    much better playable that way. CSS hides this on desktop and on landscape.
+    Phone-portrait rotation prompt. Shown on coarse-pointer devices in portrait
+    only after the join form is dismissed (body.opsy-game-shell). Login works in
+    portrait; landscape is required to play.
   -->
   <div id="rotate-prompt" class="rotate-prompt" aria-hidden="true">
     <div class="rotate-prompt-card">
@@ -38,7 +44,7 @@
       </div>
       <h2 class="rotate-prompt-title">Rotate your phone</h2>
       <p class="rotate-prompt-text">
-        Opsy Wopsy plays best in landscape. Turn your phone sideways to start.
+        Opsy Wopsy plays in landscape. Turn your phone sideways to continue.
       </p>
     </div>
   </div>
@@ -83,8 +89,24 @@
         <div class="game-loading-inner">
           <div class="game-loading-spinner" aria-hidden="true"></div>
           <p class="game-loading-text">Loading…</p>
+          <div id="game-loading-bar" class="game-loading-bar" role="progressbar" aria-label="Loading progress"
+            aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <div id="game-loading-fill" class="game-loading-fill"></div>
+          </div>
+          <p id="game-loading-percent" class="game-loading-percent">0%</p>
+          <button type="button" id="game-loading-reload-btn" class="game-loading-reload-btn" hidden>
+            Taking too long — tap to reload
+          </button>
         </div>
       </div>
+
+      <button type="button" id="fullscreen-toggle-btn" class="fullscreen-toggle-btn" aria-pressed="false"
+        title="Enter fullscreen" aria-label="Toggle fullscreen">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2.2"
+            stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
 
       <!-- Phaser HUD shows session + change action; this hidden control keeps one exit path for bootstrap. -->
       <button type="button" id="change-player-btn" hidden aria-hidden="true">Change player</button>
@@ -130,7 +152,7 @@
   </div>
 
   <!-- `?v=` bumps cache when bootstrap changes (avoids stale JS referencing removed symbols). -->
-  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=34"></script>
+  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=35"></script>
   <script>
     document.getElementById("opsy-bootstrap")?.addEventListener("error", function () {
       var el = document.getElementById("player-form-error");

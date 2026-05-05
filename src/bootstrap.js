@@ -140,6 +140,12 @@ function showGameShell(_player) {
   const appSection = document.getElementById("app");
   if (pre) pre.hidden = true;
   if (appSection) appSection.hidden = false;
+  /*
+   * While the join form is showing, portrait is allowed. Once we enter the game
+   * shell, CSS may show the rotate-to-landscape overlay on phones until the user
+   * turns sideways (see .opsy-game-shell in style.css).
+   */
+  document.body.classList.add("opsy-game-shell");
 }
 
 function showPreGame() {
@@ -147,20 +153,132 @@ function showPreGame() {
   const appSection = document.getElementById("app");
   if (pre) pre.hidden = false;
   if (appSection) appSection.hidden = true;
+  document.body.classList.remove("opsy-game-shell");
+}
+
+/** After this long with no game-ready event, surface a reload escape hatch. */
+const LOADING_OVERLAY_RELOAD_MS = 30_000;
+/** @type {number | undefined} */
+let loadingReloadTimer;
+let reloadBtnBound = false;
+
+function setLoadingProgress(value) {
+  const fill = document.getElementById("game-loading-fill");
+  const pct = document.getElementById("game-loading-percent");
+  const bar = document.getElementById("game-loading-bar");
+  const v = Math.max(0, Math.min(1, Number(value) || 0));
+  if (fill) fill.style.transform = `scaleX(${v})`;
+  if (pct) pct.textContent = `${Math.round(v * 100)}%`;
+  if (bar) bar.setAttribute("aria-valuenow", String(Math.round(v * 100)));
+}
+
+function ensureReloadButtonBound() {
+  if (reloadBtnBound) return;
+  const btn = document.getElementById("game-loading-reload-btn");
+  if (!btn) return;
+  reloadBtnBound = true;
+  btn.addEventListener("click", () => {
+    location.reload();
+  });
 }
 
 function setGameLoadingVisible(visible) {
   const el = document.getElementById("game-loading-overlay");
+  const reloadBtn = document.getElementById("game-loading-reload-btn");
   if (!el) return;
   el.hidden = !visible;
   el.setAttribute("aria-busy", visible ? "true" : "false");
+  if (visible) {
+    setLoadingProgress(0);
+    if (reloadBtn) reloadBtn.hidden = true;
+    ensureReloadButtonBound();
+    if (loadingReloadTimer) globalThis.clearTimeout(loadingReloadTimer);
+    loadingReloadTimer = globalThis.setTimeout(() => {
+      if (reloadBtn) reloadBtn.hidden = false;
+    }, LOADING_OVERLAY_RELOAD_MS);
+  } else {
+    if (reloadBtn) reloadBtn.hidden = true;
+    if (loadingReloadTimer) {
+      globalThis.clearTimeout(loadingReloadTimer);
+      loadingReloadTimer = undefined;
+    }
+  }
 }
 
-/** Hide loading once BootScene finishes asset work (see BootScene.js). */
+/** Hide loading once any playable scene activates (BootScene + GameScene both fire). */
 function ensureGameReadyListener() {
   if (gameReadyListenerAttached) return;
   gameReadyListenerAttached = true;
   globalThis.addEventListener("opsy:game-ready", () => setGameLoadingVisible(false));
+  globalThis.addEventListener("opsy:load-progress", (e) => {
+    const detail = /** @type {CustomEvent} */ (e).detail;
+    if (detail && typeof detail.progress === "number") {
+      setLoadingProgress(detail.progress);
+    }
+  });
+}
+
+/**
+ * Best-effort fullscreen — modern Chromium / Firefox / Safari iPad all honour
+ * the request; iPhone Safari ignores fullscreen on non-video elements (PWA
+ * "Add to Home Screen" is the workaround there). Must be called from a user
+ * gesture or browsers will reject.
+ */
+function requestPageFullscreen() {
+  const target = /** @type {any} */ (document.documentElement);
+  try {
+    if (target.requestFullscreen) {
+      target.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+    } else if (target.webkitRequestFullscreen) {
+      target.webkitRequestFullscreen();
+    }
+  } catch {
+    /* fullscreen unsupported / blocked — silently fall back to non-fullscreen */
+  }
+}
+
+function isFullscreen() {
+  return Boolean(
+    document.fullscreenElement ||
+      /** @type {any} */ (document).webkitFullscreenElement
+  );
+}
+
+function exitPageFullscreen() {
+  try {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if (/** @type {any} */ (document).webkitExitFullscreen) {
+      /** @type {any} */ (document).webkitExitFullscreen();
+    }
+  } catch {
+    /* ignore */
+  }
+}
+
+function toggleFullscreen() {
+  if (isFullscreen()) exitPageFullscreen();
+  else requestPageFullscreen();
+}
+
+function syncFullscreenButton() {
+  const btn = document.getElementById("fullscreen-toggle-btn");
+  if (!btn) return;
+  btn.setAttribute("aria-pressed", isFullscreen() ? "true" : "false");
+  btn.title = isFullscreen() ? "Exit fullscreen" : "Enter fullscreen";
+}
+
+function bindFullscreenControls() {
+  const btn = document.getElementById("fullscreen-toggle-btn");
+  if (btn && btn.dataset.opsyBound !== "1") {
+    btn.dataset.opsyBound = "1";
+    btn.addEventListener("click", () => {
+      toggleFullscreen();
+    });
+  }
+  document.addEventListener("fullscreenchange", syncFullscreenButton);
+  document.addEventListener("webkitfullscreenchange", syncFullscreenButton);
+  syncFullscreenButton();
 }
 
 async function loadPhaser(player) {
@@ -198,6 +316,8 @@ async function startApp() {
   const form = document.getElementById("player-form");
   const errEl = document.getElementById("player-form-error");
 
+  bindFullscreenControls();
+
   /*
    * "Change player" used to wipe the stored profile immediately, which made
    * a single accidental click (the HUD button sits next to "Restart") feel
@@ -224,6 +344,9 @@ async function startApp() {
           syncResumeBanner(null);
           return;
         }
+        /* User-initiated click — request fullscreen here; later code paths run
+           after `await` and would lose the gesture. */
+        requestPageFullscreen();
         showGameShell(stored);
         try {
           await loadPhaser(stored);
@@ -305,6 +428,10 @@ async function startApp() {
         startBtn.disabled = true;
         startBtn.textContent = "Starting...";
       }
+
+      /* Still inside the click gesture — fullscreen request would be rejected
+         after the network round-trip below, so fire it now. */
+      requestPageFullscreen();
 
       let user;
       try {

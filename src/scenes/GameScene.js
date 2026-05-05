@@ -380,6 +380,12 @@ export default class GameScene extends Phaser.Scene {
   /* ────────────────── create ────────────────── */
 
   create() {
+    /* Belt-and-braces: the BootScene fires `opsy:game-ready` once after assets
+       finish loading, but on a `scene.restart()` the DOM loading overlay must
+       not re-appear. Re-fire here so the overlay is always hidden when a
+       playable scene becomes active. */
+    globalThis.dispatchEvent(new CustomEvent("opsy:game-ready"));
+
     /* Scoreboard stays in the DOM for a11y/SEO but hides until game over fires `opsy:scores-updated`. */
     const leaderboardPanel =
       typeof document !== "undefined"

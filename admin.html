@@ -5,7 +5,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex,nofollow" />
-  <title>Opsy Wopsy · Admin</title>
+  <title>Opsy- The Game · Admin</title>
   <link rel="icon" href="./src/assets/ui/opsy_head_hud.png?v=3" type="image/png" />
   <link rel="stylesheet" href="./style.css?v=8" />
   <!-- Same-origin API by default (Express serves both). Set window.__API_BASE__ before this runs if the admin page is hosted separately from the API. -->
@@ -463,7 +463,7 @@
   <div class="admin-shell">
     <header class="admin-header">
       <div>
-        <h1>Opsy Wopsy · Admin</h1>
+        <h1>Opsy- The Game · Admin</h1>
         <p class="subtitle">Players, emails, and play history.</p>
       </div>
       <a class="home-link" href="./">&larr; Back to game</a>
@@ -683,7 +683,7 @@
       const a = document.createElement("a");
       const stamp = new Date().toISOString().slice(0, 10);
       a.href = url;
-      a.download = "opsy-wopsy-scores-" + stamp + ".xls";
+      a.download = "opsy-the-game-scores-" + stamp + ".xls";
       document.body.appendChild(a);
       a.click();
       a.remove();

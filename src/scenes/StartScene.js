@@ -33,7 +33,7 @@ export default class StartScene extends Phaser.Scene {
     gfx.fillRect(W / 2 - 210, 70, 420, 360);
 
     this.add
-      .text(W / 2, 105, "OPSY", {
+      .text(W / 2, 105, "OPSY-", {
         fontFamily: "'Courier New', monospace",
         fontSize: "64px",
         color: "#5c3d2e",
@@ -42,7 +42,7 @@ export default class StartScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(W / 2, 100, "OPSY", {
+      .text(W / 2, 100, "OPSY-", {
         fontFamily: "'Courier New', monospace",
         fontSize: "64px",
         color: "#ffe066",
@@ -51,7 +51,7 @@ export default class StartScene extends Phaser.Scene {
       .setOrigin(0.5);
 
     this.add
-      .text(W / 2, 150, "Wopsy", {
+      .text(W / 2, 150, "The Game", {
         fontFamily: "system-ui, sans-serif",
         fontSize: "20px",
         color: "#5c3d2e",

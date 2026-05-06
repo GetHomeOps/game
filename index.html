@@ -40,16 +40,16 @@
       }
     })();
   </script>
-  <title>Opsy Wopsy</title>
+  <title>Opsy- The Game</title>
   <!-- Same file as HUD dog (`HUD_DOG_FILE` in BootScene); v= ASSET_CACHE_VERSION -->
   <link rel="icon" href="./src/assets/ui/opsy_head_hud.png?v=3" type="image/png" />
   <link rel="apple-touch-icon" href="./src/assets/ui/opsy_head_hud.png?v=3" />
-  <link rel="stylesheet" href="./style.css?v=24" />
+  <link rel="stylesheet" href="./style.css?v=26" />
   <!-- Match cream loading screen so the URL bar / status bar tint blends in. -->
   <meta name="theme-color" content="#fff1d6" />
   <!-- iOS PWA: when added to home screen the URL bar is gone (true fullscreen on iPhone). -->
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="Opsy Wopsy" />
+  <meta name="apple-mobile-web-app-title" content="Opsy- The Game" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <!-- The API and the static site are served from the same Express app in /server, so default to same-origin. Override `window.__API_BASE__` before this script if you run the page from a separate dev server (e.g. Vite). -->
   <script>
@@ -80,7 +80,7 @@
       </div>
       <h2 class="rotate-prompt-title">Rotate your phone</h2>
       <p class="rotate-prompt-text">
-        Opsy Wopsy plays in landscape. Turn your phone sideways to continue.
+        Opsy- The Game plays in landscape. Turn your phone sideways to continue.
       </p>
     </div>
   </div>
@@ -88,11 +88,11 @@
   <section id="pre-game" class="pre-game" aria-labelledby="pre-game-title">
     <div class="pre-game-card">
       <img class="pre-game-mascot"
-        src="./src/assets/ui/opsy_head_hud.png?v=3"
-        width="88"
-        height="88"
+        src="./src/assets/logo/opsy_logo.png?v=3"
+        width="468"
+        height="185"
         alt="" />
-      <h1 id="pre-game-title" class="pre-game-brand">Opsy Wopsy</h1>
+      <h1 id="pre-game-title" class="pre-game-brand">Opsy- The Game</h1>
       <p class="pre-game-lede">Enter your details to play and appear on the scoreboard.</p>
       <form id="player-form" class="player-form" method="post" action="#" autocomplete="on">
         <label class="field">
@@ -118,6 +118,25 @@
       <a class="admin-login-link" href="./admin.html">Admin login</a>
     </div>
   </section>
+
+  <!-- In-game styled confirm — replaces `window.confirm` for sign-out -->
+  <div id="sign-out-modal" class="sign-out-modal" hidden aria-hidden="true">
+    <div class="sign-out-modal__dialog pre-game-card" role="dialog" aria-modal="true" aria-labelledby="sign-out-modal-title"
+      tabindex="-1">
+      <img class="sign-out-modal__mascot pre-game-mascot" src="./src/assets/logo/opsy_logo.png?v=3" width="468" height="185"
+        alt="" />
+      <h2 id="sign-out-modal-title" class="sign-out-modal__title">Sign out?</h2>
+      <p id="sign-out-modal-message" class="sign-out-modal__text"></p>
+      <div class="sign-out-modal__actions">
+        <button type="button" id="sign-out-modal-cancel" class="btn-secondary">
+          Cancel
+        </button>
+        <button type="button" id="sign-out-modal-confirm" class="btn-primary">
+          Sign out
+        </button>
+      </div>
+    </div>
+  </div>
 
   <div id="app" hidden>
     <div class="game-stage">
@@ -191,7 +210,7 @@
   </div>
 
   <!-- `?v=` bumps cache when bootstrap changes (avoids stale JS referencing removed symbols). -->
-  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=42"></script>
+  <script type="module" id="opsy-bootstrap" src="./src/bootstrap.js?v=44"></script>
   <script>
     document.getElementById("opsy-bootstrap")?.addEventListener("error", function () {
       var el = document.getElementById("player-form-error");

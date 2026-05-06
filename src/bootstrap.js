@@ -124,6 +124,74 @@ function syncSignOutLink(stored) {
   btn.hidden = !stored;
 }
 
+/** @type {((value: boolean) => void) | null} */
+let signOutModalResolve = null;
+/** @type {((_e: KeyboardEvent) => void) | null} */
+let signOutModalEscapeHandler = null;
+/** @type {Element | null} */
+let signOutModalPreviousFocus = null;
+
+function completeSignOutModal(confirmed) {
+  if (!signOutModalResolve) return;
+  const modal = document.getElementById("sign-out-modal");
+  const resolve = signOutModalResolve;
+  signOutModalResolve = null;
+  if (signOutModalEscapeHandler) {
+    document.removeEventListener("keydown", signOutModalEscapeHandler);
+    signOutModalEscapeHandler = null;
+  }
+  if (modal) {
+    modal.hidden = true;
+    modal.setAttribute("aria-hidden", "true");
+  }
+  if (signOutModalPreviousFocus instanceof HTMLElement) {
+    signOutModalPreviousFocus.focus();
+  }
+  signOutModalPreviousFocus = null;
+  resolve(confirmed);
+}
+
+function bindSignOutModal() {
+  const modal = document.getElementById("sign-out-modal");
+  const cancelBtn = document.getElementById("sign-out-modal-cancel");
+  const confirmBtn = document.getElementById("sign-out-modal-confirm");
+  if (!modal || !cancelBtn || !confirmBtn) return;
+
+  modal.addEventListener("click", (e) => {
+    if (e.target === modal) completeSignOutModal(false);
+  });
+  cancelBtn.addEventListener("click", () => completeSignOutModal(false));
+  confirmBtn.addEventListener("click", () => completeSignOutModal(true));
+}
+
+/**
+ * @param {string} message
+ * @returns {Promise<boolean>}
+ */
+function openSignOutConfirmModal(message) {
+  const modal = document.getElementById("sign-out-modal");
+  const msgEl = document.getElementById("sign-out-modal-message");
+  const cancelBtn = document.getElementById("sign-out-modal-cancel");
+  if (!modal || !msgEl) {
+    return Promise.resolve(globalThis.confirm(message));
+  }
+  return new Promise((resolve) => {
+    signOutModalResolve = resolve;
+    msgEl.textContent = message;
+    signOutModalPreviousFocus = document.activeElement;
+    modal.hidden = false;
+    modal.setAttribute("aria-hidden", "false");
+    signOutModalEscapeHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        completeSignOutModal(false);
+      }
+    };
+    document.addEventListener("keydown", signOutModalEscapeHandler);
+    cancelBtn?.focus();
+  });
+}
+
 function showGameShell(_player) {
   const pre = document.getElementById("pre-game");
   const appSection = document.getElementById("app");
@@ -404,7 +472,7 @@ function showIosFullscreenHint(anchorBtn) {
   tip.className = "ios-fullscreen-hint";
   tip.setAttribute("role", "tooltip");
   tip.textContent =
-    "iPhone blocks in-page fullscreen. For true fullscreen: tap the Share icon in Safari → Add to Home Screen, then open Opsy Wopsy from the home screen.";
+    "iPhone blocks in-page fullscreen. For true fullscreen: tap the Share icon in Safari → Add to Home Screen, then open Opsy- The Game from the home screen.";
   document.body.appendChild(tip);
   const dismiss = () => {
     tip.remove();
@@ -483,6 +551,7 @@ async function startApp() {
   const errEl = document.getElementById("player-form-error");
 
   bindFullscreenControls();
+  bindSignOutModal();
 
   /*
    * "Change player" used to wipe the stored profile immediately, which made
@@ -502,24 +571,26 @@ async function startApp() {
   document
     .getElementById("resume-clear-btn")
     ?.addEventListener("click", () => {
-      const stored = getStoredPlayer();
-      const label =
-        stored?.name?.trim() || stored?.username?.trim() || "this profile";
-      const ok = globalThis.confirm(
-        `Sign out of ${label}? You'll need to enter your details again to play.`,
-      );
-      if (!ok) return;
-      removeStoredPlayer();
-      const form = document.getElementById("player-form");
-      if (form) {
-        const nameInput = form.querySelector('[name="name"]');
-        const userInput = form.querySelector('[name="username"]');
-        const emailInput = form.querySelector('[name="email"]');
-        if (nameInput instanceof HTMLInputElement) nameInput.value = "";
-        if (userInput instanceof HTMLInputElement) userInput.value = "";
-        if (emailInput instanceof HTMLInputElement) emailInput.value = "";
-      }
-      syncSignOutLink(null);
+      void (async () => {
+        const stored = getStoredPlayer();
+        const label =
+          stored?.name?.trim() || stored?.username?.trim() || "this profile";
+        const ok = await openSignOutConfirmModal(
+          `Sign out of ${label}? You'll need to enter your details again to play.`,
+        );
+        if (!ok) return;
+        removeStoredPlayer();
+        const form = document.getElementById("player-form");
+        if (form) {
+          const nameInput = form.querySelector('[name="name"]');
+          const userInput = form.querySelector('[name="username"]');
+          const emailInput = form.querySelector('[name="email"]');
+          if (nameInput instanceof HTMLInputElement) nameInput.value = "";
+          if (userInput instanceof HTMLInputElement) userInput.value = "";
+          if (emailInput instanceof HTMLInputElement) emailInput.value = "";
+        }
+        syncSignOutLink(null);
+      })();
     });
 
   function bindJoinFlow() {

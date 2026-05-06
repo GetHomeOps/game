@@ -106,7 +106,8 @@ body {
 
 .pre-game-mascot {
   display: block;
-  width: clamp(72px, 22vw, 96px);
+  width: min(220px, 72vw);
+  max-height: 88px;
   height: auto;
   margin: -0.15rem auto 0.65rem;
   object-fit: contain;
@@ -233,6 +234,67 @@ body {
 .pre-game-sign-out-link:hover,
 .pre-game-sign-out-link:focus-visible {
   color: var(--danger);
+}
+
+/* Sign-out confirmation (replaces native `confirm`) */
+.sign-out-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.25rem;
+  background: rgba(44, 36, 28, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.sign-out-modal[hidden],
+#sign-out-modal[hidden] {
+  display: none !important;
+}
+
+.sign-out-modal__dialog {
+  width: min(400px, 100%);
+  margin: 0;
+  outline: none;
+  text-align: center;
+}
+
+.sign-out-modal__mascot {
+  width: min(180px, 58vw);
+  max-height: 72px;
+  margin-bottom: 0.5rem;
+}
+
+.sign-out-modal__title {
+  margin: 0 0 0.65rem;
+  font-family: "Courier New", monospace;
+  font-size: 1.35rem;
+  font-weight: 900;
+  color: var(--wood);
+  letter-spacing: -0.02em;
+}
+
+.sign-out-modal__text {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+  color: rgba(62, 39, 35, 0.9);
+}
+
+.sign-out-modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  justify-content: center;
+  margin-top: 1.15rem;
+}
+
+.sign-out-modal__actions .btn-secondary,
+.sign-out-modal__actions .btn-primary {
+  min-width: 7rem;
 }
 
 .admin-login-link {

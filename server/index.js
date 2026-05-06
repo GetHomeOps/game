@@ -386,5 +386,5 @@ app.use(express.static(ROOT));
 
 const PORT = Number(process.env.PORT) || 3333;
 app.listen(PORT, () => {
-  console.log(`Opsy Wopsy server http://localhost:${PORT}`);
+  console.log(`Opsy- The Game server http://localhost:${PORT}`);
 });

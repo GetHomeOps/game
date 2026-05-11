@@ -37,13 +37,13 @@ function apiError(res, data, fallback) {
   throw new Error(msg || fallback || `Request failed (${res.status})`);
 }
 
-export async function registerPlayer({ name, username, email }) {
+export async function registerPlayer({ name, username, email, companyName }) {
   let res;
   try {
     res = await fetch(apiUrl("/api/register"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, username, email }),
+      body: JSON.stringify({ name, username, email, companyName }),
     });
   } catch {
     throw new Error(

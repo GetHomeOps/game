@@ -38,7 +38,7 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-/** @typedef {{ id: number; email: string; username: string; name: string; created_at: string }} User */
+/** @typedef {{ id: number; email: string; username: string; name: string; company_name?: string; created_at: string }} User */
 /** @typedef {{ id: number; user_id: number; score: number; docs_collected: number; laps: number; created_at: string }} ScoreRow */
 
 /** @type {{ users: User[]; scores: ScoreRow[]; nextUserId: number; nextScoreId: number }} */
@@ -98,7 +98,15 @@ function validatePlayerPayload(body) {
   if (!isValidEmail(email)) {
     return { error: "Please enter a valid email address." };
   }
-  return { name, username, email };
+  const companyName = String(
+    body?.companyName ?? body?.company_name ?? ""
+  ).trim();
+  if (companyName.length < 1 || companyName.length > 120) {
+    return {
+      error: "Company name must be between 1 and 120 characters.",
+    };
+  }
+  return { name, username, email, companyName };
 }
 
 app.post("/api/register", (req, res) => {
@@ -121,6 +129,7 @@ app.post("/api/register", (req, res) => {
         name: existingByEmail.name,
         username: existingByEmail.username,
         email: existingByEmail.email,
+        companyName: existingByEmail.company_name ?? "",
       },
       returning: true,
     });
@@ -143,6 +152,7 @@ app.post("/api/register", (req, res) => {
     email: emailLower,
     username: v.username,
     name: v.name,
+    company_name: v.companyName,
     created_at: now,
   };
   data.users.push(user);
@@ -154,6 +164,7 @@ app.post("/api/register", (req, res) => {
       name: user.name,
       username: user.username,
       email: user.email,
+      companyName: user.company_name ?? "",
     },
     returning: false,
   });
@@ -286,6 +297,7 @@ app.get("/api/admin/users", requireAdmin, (_req, res) => {
       return {
         id: u.id,
         name: u.name,
+        companyName: u.company_name ?? "",
         username: u.username,
         email: u.email,
         scores: (scoresByUser.get(u.id) ?? [])
@@ -309,6 +321,7 @@ app.get("/api/admin/users", requireAdmin, (_req, res) => {
         {
           userId: u.id,
           name: u.name,
+          companyName: u.company_name ?? "",
           username: u.username,
           email: u.email,
           scoreId: null,
@@ -323,6 +336,7 @@ app.get("/api/admin/users", requireAdmin, (_req, res) => {
     return userScores.map((s) => ({
       userId: u.id,
       name: u.name,
+      companyName: u.company_name ?? "",
       username: u.username,
       email: u.email,
       scoreId: s.id,

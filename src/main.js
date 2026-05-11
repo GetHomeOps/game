@@ -35,7 +35,7 @@ function corePluginsAvailable() {
 }
 
 /**
- * @param {{ id: number; name: string; username: string; email: string } | null} player
+ * @param {{ id: number; name: string; username: string; email: string; companyName?: string } | null} player
  */
 export function startGame(player) {
   if (!corePluginsAvailable()) {

@@ -63,6 +63,8 @@ function getStoredPlayer() {
         username: p.username.trim(),
         name: typeof p.name === "string" ? p.name.trim() : "",
         email: typeof p.email === "string" ? p.email.trim() : "",
+        companyName:
+          typeof p.companyName === "string" ? p.companyName.trim() : "",
       };
       persistPlayerPayload(normalized);
       return normalized;
@@ -112,9 +114,12 @@ function prefillPlayerForm() {
   const nameInput = form.querySelector('[name="name"]');
   const userInput = form.querySelector('[name="username"]');
   const emailInput = form.querySelector('[name="email"]');
+  const companyInput = form.querySelector('[name="companyName"]');
   if (nameInput instanceof HTMLInputElement) nameInput.value = p.name || "";
   if (userInput instanceof HTMLInputElement) userInput.value = p.username || "";
   if (emailInput instanceof HTMLInputElement) emailInput.value = p.email || "";
+  if (companyInput instanceof HTMLInputElement)
+    companyInput.value = p.companyName || "";
 }
 
 /** Shows the explicit sign-out control only when a stored profile exists (prefilled form). */
@@ -585,9 +590,11 @@ async function startApp() {
           const nameInput = form.querySelector('[name="name"]');
           const userInput = form.querySelector('[name="username"]');
           const emailInput = form.querySelector('[name="email"]');
+          const companyInput = form.querySelector('[name="companyName"]');
           if (nameInput instanceof HTMLInputElement) nameInput.value = "";
           if (userInput instanceof HTMLInputElement) userInput.value = "";
           if (emailInput instanceof HTMLInputElement) emailInput.value = "";
+          if (companyInput instanceof HTMLInputElement) companyInput.value = "";
         }
         syncSignOutLink(null);
       })();
@@ -631,6 +638,7 @@ async function startApp() {
       const name = String(fd.get("name") ?? "").trim();
       const username = String(fd.get("username") ?? "").trim();
       const email = String(fd.get("email") ?? "").trim();
+      const companyName = String(fd.get("companyName") ?? "").trim();
 
       if (startBtn) {
         startBtn.disabled = true;
@@ -646,7 +654,7 @@ async function startApp() {
 
       let user;
       try {
-        const res = await registerPlayer({ name, username, email });
+        const res = await registerPlayer({ name, username, email, companyName });
         user = res.user;
       } catch (err) {
         /* Keep any saved profile — a network or server error must not wipe it. */
@@ -686,6 +694,8 @@ async function startApp() {
         username: user.username.trim(),
         name: typeof user.name === "string" ? user.name.trim() : "",
         email: typeof user.email === "string" ? user.email.trim() : "",
+        companyName:
+          typeof user.companyName === "string" ? user.companyName.trim() : "",
       };
 
       try {
